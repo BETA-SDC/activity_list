@@ -609,8 +609,11 @@ button {
 
 .required-mark {
   margin-left: 0.15rem;
-  color: #d92d20;
-  font-weight: 800;
+  color: #d92d20 !important;
+  font-size: 0.96rem;
+  font-weight: 900;
+  line-height: 1;
+  vertical-align: text-top;
 }
 
 .form-field input,
