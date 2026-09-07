@@ -2,13 +2,11 @@
   "use strict";
 
   const app = document.getElementById("app");
-  const VIEWS = ["activities", "calendar", "contribution"];
   const MAX_TASK_FILES = 200;
 
   const state = {
     activities: [],
     tasks: [],
-    view: "activities",
     filterMode: "status"
   };
 
@@ -33,9 +31,9 @@
       "'": "&#39;"
     })[char]);
 
-  const currentView = () => {
-    const hash = location.hash.replace(/^#\/?/, "");
-    return VIEWS.includes(hash) ? hash : "activities";
+  const currentPage = () => {
+    const page = clean(document.body.dataset.page);
+    return ["activities", "calendar", "contribution"].includes(page) ? page : "activities";
   };
 
   async function fetchJSON(path) {
@@ -135,6 +133,7 @@
   const pageMeta = {
     activities: {
       title: "Activities",
+      subtitle: "查看全部活动，可按状态或活动类型分列。"
     },
     calendar: {
       title: "Calendar",
@@ -153,7 +152,7 @@
         <div>
           <p class="eyebrow">Westlake Beta College Activity Center</p>
           <h1>${escapeHTML(meta.title)}</h1>
-          <p class="subtitle">${escapeHTML(meta.subtitle)}</p>
+          ${meta.subtitle ? `<p class="subtitle">${escapeHTML(meta.subtitle)}</p>` : ""}
         </div>
         <button class="refresh-btn" id="refreshBtn" type="button">刷新数据</button>
       </section>
@@ -489,7 +488,7 @@
 
   const updateNavigation = () => {
     document.querySelectorAll("[data-nav]").forEach((link) => {
-      const active = link.dataset.nav === state.view;
+      const active = link.dataset.nav === currentPage();
       link.classList.toggle("active", active);
       if (active) {
         link.setAttribute("aria-current", "page");
@@ -500,16 +499,16 @@
   };
 
   const render = () => {
-    state.view = currentView();
-    const body = state.view === "activities"
+    const page = currentPage();
+    const body = page === "activities"
       ? renderActivities()
-      : state.view === "calendar"
+      : page === "calendar"
         ? renderCalendar()
         : renderContribution();
 
-    app.innerHTML = pageIntro(state.view) + body;
+    app.innerHTML = pageIntro(page) + body;
     updateNavigation();
-    document.title = `${pageMeta[state.view].title} · 西湖大学β书院活动中心`;
+    document.title = `${pageMeta[page].title} · 西湖大学β书院活动中心`;
   };
 
   const showLoading = () => {
@@ -580,6 +579,5 @@
     }
   });
 
-  window.addEventListener("hashchange", render);
   init();
 })();

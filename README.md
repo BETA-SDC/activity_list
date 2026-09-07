@@ -11,9 +11,12 @@
 - `data/活动表.json`
 - `data/任务分工` 文件夹下的分工文件，优先读取 `data/任务分工/index.json`
 
-页面代码已经拆成三个静态文件：
+页面代码已经拆成三个静态页面和两个共享静态文件：
 
-- `index.html`
+- `activities.html`
+- `calendar.html`
+- `contribution.html`
+- `index.html`（跳转入口）
 - `assets/css/styles.css`
 - `assets/js/app.js`
 
