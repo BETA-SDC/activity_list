@@ -607,6 +607,15 @@ button {
   font-weight: 750;
 }
 
+.required-mark {
+  margin-left: 0.15rem;
+  color: #d92d20 !important;
+  font-size: 0.96rem;
+  font-weight: 900;
+  line-height: 1;
+  vertical-align: text-top;
+}
+
 .form-field input,
 .form-field select,
 .form-field textarea {

@@ -233,10 +233,20 @@ const saveActivity = async (payload) => {
     throw new Error("缺少活动数据");
   }
 
-  const code = trimText(draft["代号"]);
-  if (!code) {
-    throw new Error("代号不能为空");
+  const requiredFields = [
+    ["代号", "代号"],
+    ["活动名称", "活动名称"],
+    ["状态", "状态"],
+    ["活动类型", "活动类型"]
+  ];
+  const missing = requiredFields
+    .filter(([key]) => !trimText(draft[key]))
+    .map(([, label]) => label);
+  if (missing.length) {
+    throw new Error(`请先填写必填项：${missing.join("、")}`);
   }
+
+  const code = trimText(draft["代号"]);
 
   const groups = await loadActivityGroups();
   const originalCode = trimText(payload?.originalCode);
