@@ -227,4 +227,17 @@
       subtitle: "统计待办和已完成的成员次数，不含归档。"
     }
   };
+
+  AL.sourceStyle = (source) => {
+    const accent = source?.color || source?.sourceColor || "";
+    const accentStrong = source?.colorStrong || source?.sourceColorStrong || "";
+    const styles = [];
+    if (accent) {
+      styles.push(`--source-accent: ${accent}`);
+    }
+    if (accentStrong) {
+      styles.push(`--source-accent-strong: ${accentStrong}`);
+    }
+    return styles.length ? ` style="${AL.escapeHTML(styles.join("; "))}"` : "";
+  };
 })();

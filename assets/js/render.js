@@ -208,7 +208,7 @@
         <div class="toolbar calendar-toolbar">
           <div class="calendar-sources">
             ${state.calendarSources.map((source) => `
-              <label class="source-toggle source-${AL.escapeHTML(source.id)}">
+              <label class="source-toggle source-${AL.escapeHTML(source.id)}"${AL.sourceStyle(source)}>
                 <input type="checkbox" data-source="${AL.escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
                 <span>${AL.escapeHTML(source.label)}</span>
                 <em>${source.events.length}</em>
@@ -230,7 +230,7 @@
         <div class="toolbar calendar-toolbar">
           <div class="calendar-sources">
             ${state.calendarSources.map((source) => `
-              <label class="source-toggle source-${AL.escapeHTML(source.id)}">
+              <label class="source-toggle source-${AL.escapeHTML(source.id)}"${AL.sourceStyle(source)}>
                 <input type="checkbox" data-source="${AL.escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
                 <span>${AL.escapeHTML(source.label)}</span>
                 <em>${source.events.length}</em>
@@ -283,7 +283,7 @@
             <div class="calendar-day">
               <span class="day-number">${day}</span>
               ${dayEvents.map((event) => `
-                <div class="cal-event source-${AL.escapeHTML(event.sourceId)}" title="${AL.escapeHTML(event.title || "")}">
+                <div class="cal-event source-${AL.escapeHTML(event.sourceId)}"${AL.sourceStyle(event)} title="${AL.escapeHTML(event.title || "")}">
                   <span class="event-code">${AL.escapeHTML(event.code || "—")}</span>
                   <span class="event-name"> · ${AL.escapeHTML(event.title || "")}</span>
                 </div>
@@ -310,7 +310,7 @@
       <div class="toolbar calendar-toolbar">
         <div class="calendar-sources">
           ${state.calendarSources.map((source) => `
-            <label class="source-toggle source-${AL.escapeHTML(source.id)}">
+            <label class="source-toggle source-${AL.escapeHTML(source.id)}"${AL.sourceStyle(source)}>
               <input type="checkbox" data-source="${AL.escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
               <span>${AL.escapeHTML(source.label)}</span>
               <em>${source.events.length}</em>

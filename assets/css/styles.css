@@ -636,28 +636,30 @@ button {
   padding: 0.45rem 0.65rem;
   border: 0.0625rem solid var(--line);
   border-radius: 0.8rem;
-  background: var(--surface);
-  color: var(--ink);
+  background: var(--source-accent, var(--surface));
+  color: var(--source-accent-strong, var(--ink));
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
 }
 
+.source-toggle,
+.cal-event {
+  --source-accent: rgba(113, 197, 10, 0.18);
+  --source-accent-strong: rgba(59, 103, 5, 0.92);
+}
+
 .source-toggle.source-tasks {
   border-color: rgba(226, 146, 52, 0.32);
-  color: #8c5717;
-  background: var(--calendar-tasks);
 }
 
 .source-toggle.source-external {
   border-color: rgba(24, 69, 136, 0.32);
-  color: #184588;
-  background: var(--calendar-external);
 }
 
 .source-toggle input {
   margin: 0;
-  accent-color: var(--green);
+  accent-color: var(--source-accent-strong, var(--green));
 }
 
 .source-toggle.source-tasks input {
@@ -670,18 +672,10 @@ button {
 
 .source-toggle em {
   margin-left: 0.15rem;
-  color: var(--muted);
+  color: var(--source-accent-strong, var(--muted));
   font-style: normal;
   font-size: 0.7rem;
   font-weight: 700;
-}
-
-.source-toggle.source-tasks em {
-  color: var(--calendar-tasks-strong);
-}
-
-.source-toggle.source-external em {
-  color: var(--calendar-external-strong);
 }
 
 .calendar-actions {
@@ -768,8 +762,8 @@ button {
   gap: 0.25rem;
   padding: 0.12rem 0.22rem;
   border-radius: 0.4rem;
-  color: var(--red-dark);
-  background: var(--red-soft);
+  color: var(--source-accent-strong, var(--red-dark));
+  background: var(--source-accent, var(--red-soft));
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.6rem;
@@ -778,14 +772,10 @@ button {
 }
 
 .cal-event.source-tasks {
-  color: #8c5717;
-  background: var(--calendar-tasks);
   box-shadow: inset 0 0 0 0.0625rem rgba(226, 146, 52, 0.22);
 }
 
 .cal-event.source-external {
-  color: #184588;
-  background: var(--calendar-external);
   box-shadow: inset 0 0 0 0.0625rem rgba(24, 69, 136, 0.22);
 }
 

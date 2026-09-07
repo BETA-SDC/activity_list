@@ -198,6 +198,8 @@
       id: uid,
       sourceId: source.id,
       sourceLabel: source.label,
+      sourceColor: source.color,
+      sourceColorStrong: source.colorStrong,
       title,
       year: startStamp.year,
       month: startStamp.month,
@@ -265,6 +267,8 @@
       id: `${source.id}:${code}:${date.year}-${AL.pad2(date.month)}-${AL.pad2(date.day)}`,
       sourceId: source.id,
       sourceLabel: source.label,
+      sourceColor: source.color,
+      sourceColorStrong: source.colorStrong,
       title,
       code,
       year: date.year,
@@ -287,6 +291,8 @@
         id: "tasks",
         label: "任务带入",
         kind: "activity",
+        color: "rgba(226, 146, 52, 0.18)",
+        colorStrong: "rgba(226, 146, 52, 0.9)",
         default: true,
         includeInCalendar: true,
         includeInContribution: true
@@ -296,6 +302,8 @@
         label: "外部导入",
         kind: "file",
         file: "external.ics",
+        color: "rgba(24, 69, 136, 0.18)",
+        colorStrong: "rgba(24, 69, 136, 0.9)",
         default: true,
         includeInCalendar: true,
         includeInContribution: false
@@ -354,6 +362,7 @@
         includeInCalendar: source.includeInCalendar !== false,
         includeInContribution: source.includeInContribution !== false,
         color: AL.clean(source.color) || "",
+        colorStrong: AL.clean(source.colorStrong) || "",
         file: AL.clean(source.file) || "",
         files: Array.isArray(source.files) ? source.files.map(String).filter(Boolean) : []
       };
