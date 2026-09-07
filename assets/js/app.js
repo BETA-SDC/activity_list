@@ -166,6 +166,10 @@
       return;
     }
     event.preventDefault();
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     (async () => {
       try {
         await AL.saveActivityDraft(state.activityEditorDraft, state.activityEditorOriginalCode);

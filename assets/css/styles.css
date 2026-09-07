@@ -607,6 +607,12 @@ button {
   font-weight: 750;
 }
 
+.required-mark {
+  margin-left: 0.15rem;
+  color: #d92d20;
+  font-weight: 800;
+}
+
 .form-field input,
 .form-field select,
 .form-field textarea {

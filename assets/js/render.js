@@ -71,22 +71,28 @@
 
   AL.activityEditorOptionList = () => ["待分工", "已分工", "已归档"];
 
+  AL.activityEditorRequiredFields = () => new Set(["代号", "活动名称", "状态", "活动类型"]);
+
   AL.activityEditorField = (draft, key, label, type = "text", extra = "") => {
     const value = AL.clean(draft?.[key]);
     const id = `activity-field-${key.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "")}`;
+    const required = AL.activityEditorRequiredFields().has(key);
+    const labelHTML = required
+      ? `${AL.escapeHTML(label)}<span class="required-mark" aria-hidden="true">*</span>`
+      : AL.escapeHTML(label);
     if (type === "textarea") {
       return `
         <label class="form-field form-field-full" for="${id}">
-          <span>${AL.escapeHTML(label)}</span>
-          <textarea id="${id}" data-activity-field="${AL.escapeHTML(key)}" rows="4" placeholder="请输入${AL.escapeHTML(label)}">${AL.escapeHTML(value)}</textarea>
+          <span>${labelHTML}</span>
+          <textarea id="${id}" data-activity-field="${AL.escapeHTML(key)}" rows="4" placeholder="请输入${AL.escapeHTML(label)}"${required ? " required" : ""}>${AL.escapeHTML(value)}</textarea>
         </label>
       `;
     }
     if (type === "select") {
       return `
         <label class="form-field" for="${id}">
-          <span>${AL.escapeHTML(label)}</span>
-          <select id="${id}" data-activity-field="${AL.escapeHTML(key)}">
+          <span>${labelHTML}</span>
+          <select id="${id}" data-activity-field="${AL.escapeHTML(key)}"${required ? " required" : ""}>
             ${AL.activityEditorOptionList().map((option) => `
               <option value="${AL.escapeHTML(option)}" ${option === value ? "selected" : ""}>${AL.escapeHTML(option)}</option>
             `).join("")}
@@ -96,8 +102,8 @@
     }
     return `
       <label class="form-field" for="${id}">
-        <span>${AL.escapeHTML(label)}</span>
-        <input id="${id}" type="${type}" data-activity-field="${AL.escapeHTML(key)}" value="${AL.escapeHTML(value)}" placeholder="请输入${AL.escapeHTML(label)}"${extra}>
+        <span>${labelHTML}</span>
+        <input id="${id}" type="${type}" data-activity-field="${AL.escapeHTML(key)}" value="${AL.escapeHTML(value)}" placeholder="请输入${AL.escapeHTML(label)}"${required ? " required" : ""}${extra}>
       </label>
     `;
   };
@@ -135,7 +141,7 @@
             ${AL.activityEditorField(draft, "地点", "地点")}
           </div>
           <div class="editor-footer">
-            <div class="editor-note">当前只提供填写模板，后续会接入本地保存与导出。</div>
+            <div class="editor-note">红色 * 为必填项，未填不能提交。</div>
             <div class="editor-actions">
               <button type="button" class="secondary-btn" data-close-activity-editor>取消</button>
               <button type="submit" class="primary-btn">保存到本地</button>
