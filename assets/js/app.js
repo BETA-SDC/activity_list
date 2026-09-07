@@ -354,6 +354,13 @@
       .replace(/;/g, "\\;")
       .replace(/,/g, "\\,");
 
+  const unescapeICS = (value) =>
+    String(value ?? "")
+      .replace(/\\n/gi, "\n")
+      .replace(/\\;/g, ";")
+      .replace(/\\,/g, ",")
+      .replace(/\\\\/g, "\\");
+
   const unfoldICS = (text) =>
     String(text || "")
       .replace(/\r\n/g, "\n")
@@ -442,7 +449,7 @@
         continue;
       }
       const head = line.slice(0, colon);
-      const value = line.slice(colon + 1);
+      const value = unescapeICS(line.slice(colon + 1));
       const [name, ...params] = head.split(";");
       const key = name.toUpperCase();
       current[key] ||= [];
