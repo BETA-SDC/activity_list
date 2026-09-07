@@ -17,6 +17,135 @@
     `;
   };
 
+  AL.visibleActivityGroups = (state) =>
+    state.showArchived
+      ? state.activityGroups
+      : state.activityGroups.filter((group) => group.id !== "archive");
+
+  AL.allActivities = (state) =>
+    state.activityGroups.flatMap((group) => group.activities);
+
+  AL.visibleActivities = (state) =>
+    AL.visibleActivityGroups(state).flatMap((group) => group.activities);
+
+  AL.statusChoices = (state) => {
+    const preferred = ["待分工", "已分工"];
+    const choices = new Set();
+    for (const activity of AL.allActivities(state)) {
+      const status = AL.clean(activity["状态"]);
+      if (status && status !== "已归档") {
+        choices.add(status);
+      }
+    }
+    return [...preferred.filter((status) => choices.has(status)), ...[...choices].filter((status) => !preferred.includes(status))];
+  };
+
+  AL.activeStatusFilter = (state) => {
+    const choices = AL.statusChoices(state);
+    return choices.includes(state.statusFilter) ? state.statusFilter : (choices[0] || "待分工");
+  };
+
+  AL.activityEditorDefaults = () => ({
+    "代号": "",
+    "活动名称": "",
+    "状态": "待分工",
+    "建立规划时间": "",
+    "详情": "",
+    "活动类型": "",
+    "总负责人": "",
+    "预计月份(Y)": "",
+    "预计日期(D)": "",
+    "开始时间(H)": "",
+    "地点": ""
+  });
+
+  AL.activityEditorDraftFrom = (activity) => ({
+    ...AL.activityEditorDefaults(),
+    ...Object.fromEntries(Object.entries(activity || {}).filter(([, value]) => value !== undefined && value !== null))
+  });
+
+  AL.activityEditorTitle = (state) =>
+    state.activityEditorMode === "edit" ? "编辑活动卡片" : "新增活动卡片";
+
+  AL.activityEditorHint = "保存会写回本地 data/activities 文件。";
+
+  AL.activityEditorOptionList = () => ["待分工", "已分工", "已归档"];
+
+  AL.activityEditorField = (draft, key, label, type = "text", extra = "") => {
+    const value = AL.clean(draft?.[key]);
+    const id = `activity-field-${key.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "")}`;
+    if (type === "textarea") {
+      return `
+        <label class="form-field form-field-full" for="${id}">
+          <span>${AL.escapeHTML(label)}</span>
+          <textarea id="${id}" data-activity-field="${AL.escapeHTML(key)}" rows="4" placeholder="请输入${AL.escapeHTML(label)}">${AL.escapeHTML(value)}</textarea>
+        </label>
+      `;
+    }
+    if (type === "select") {
+      return `
+        <label class="form-field" for="${id}">
+          <span>${AL.escapeHTML(label)}</span>
+          <select id="${id}" data-activity-field="${AL.escapeHTML(key)}">
+            ${AL.activityEditorOptionList().map((option) => `
+              <option value="${AL.escapeHTML(option)}" ${option === value ? "selected" : ""}>${AL.escapeHTML(option)}</option>
+            `).join("")}
+          </select>
+        </label>
+      `;
+    }
+    return `
+      <label class="form-field" for="${id}">
+        <span>${AL.escapeHTML(label)}</span>
+        <input id="${id}" type="${type}" data-activity-field="${AL.escapeHTML(key)}" value="${AL.escapeHTML(value)}" placeholder="请输入${AL.escapeHTML(label)}"${extra}>
+      </label>
+    `;
+  };
+
+  AL.activityEditorModal = (state) => {
+    if (!state.activityEditorOpen) {
+      return "";
+    }
+
+    const draft = state.activityEditorDraft || AL.activityEditorDefaults();
+    const title = AL.activityEditorTitle(state);
+
+    return `
+      <div class="editor-backdrop" data-close-activity-editor></div>
+      <section class="editor-modal" role="dialog" aria-modal="true" aria-labelledby="activityEditorTitle">
+        <div class="editor-head">
+          <div>
+            <p class="editor-eyebrow">Activities</p>
+            <h2 id="activityEditorTitle">${AL.escapeHTML(title)}</h2>
+            <p class="editor-hint">${AL.escapeHTML(AL.activityEditorHint)}</p>
+          </div>
+          <button type="button" class="editor-close" data-close-activity-editor aria-label="关闭">×</button>
+        </div>
+        <form class="activity-editor-form" autocomplete="off">
+          <div class="editor-grid">
+            ${AL.activityEditorField(draft, "代号", "代号")}
+            ${AL.activityEditorField(draft, "活动名称", "活动名称")}
+            ${AL.activityEditorField(draft, "状态", "状态", "select")}
+            ${AL.activityEditorField(draft, "活动类型", "活动类型")}
+            ${AL.activityEditorField(draft, "总负责人", "总负责人")}
+            ${AL.activityEditorField(draft, "详情", "详情", "textarea")}
+            ${AL.activityEditorField(draft, "预计月份(Y)", "预计月份(Y)", "text")}
+            ${AL.activityEditorField(draft, "预计日期(D)", "预计日期(D)", "text")}
+            ${AL.activityEditorField(draft, "开始时间(H)", "开始时间(H)", "text")}
+            ${AL.activityEditorField(draft, "地点", "地点")}
+          </div>
+          <div class="editor-footer">
+            <div class="editor-note">当前只提供填写模板，后续会接入本地保存与导出。</div>
+            <div class="editor-actions">
+              <button type="button" class="secondary-btn" data-close-activity-editor>取消</button>
+              <button type="submit" class="primary-btn">保存到本地</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    `;
+  };
+
   AL.emptyState = (message) => `
     <div class="state-card">
       <div>
@@ -77,6 +206,7 @@
     const code = AL.clean(activity["代号"]) || "—";
     const name = AL.clean(activity["活动名称"]) || "未命名活动";
     const status = AL.clean(activity["状态"]) || "未分类";
+    const planningTime = AL.clean(activity["建立规划时间"]);
     const type = AL.clean(activity["活动类型"]) || "未分类";
     const owner = AL.clean(activity["总负责人"]) || "待定";
     const location = AL.clean(activity["地点"]);
@@ -112,7 +242,10 @@
             <span class="badge type">${AL.escapeHTML(type)}</span>
           </div>
         </div>
-        <h3>${AL.escapeHTML(name)}</h3>
+        <div class="card-title-row">
+          <h3>${AL.escapeHTML(name)}</h3>
+          <button type="button" class="card-edit-btn" data-edit-activity="${AL.escapeHTML(code)}">编辑</button>
+        </div>
         ${detail ? `<p class="detail">${AL.escapeHTML(detail)}</p>` : ""}
         ${taskDetailsHTML}
         <dl class="meta">
@@ -120,6 +253,12 @@
             <dt>总负责人</dt>
             <dd>${AL.escapeHTML(owner)}</dd>
           </div>
+          ${planningTime ? `
+            <div>
+              <dt>建立规划时间</dt>
+              <dd>${AL.escapeHTML(planningTime)}</dd>
+            </div>
+          ` : ""}
           <div>
             <dt>预计时间</dt>
             <dd>${AL.escapeHTML(AL.activityTimeText(activity))}</dd>
@@ -136,8 +275,11 @@
   };
 
   AL.groupActivities = (activities, mode) => {
+    const sortedActivities = mode === "archive"
+      ? AL.sortArchivedActivities(activities)
+      : AL.sortActivities(activities);
     const groups = new Map();
-    for (const activity of AL.sortActivities(activities)) {
+    for (const activity of sortedActivities) {
       const key = mode === "type"
         ? AL.clean(activity["活动类型"]) || "未分类"
         : AL.clean(activity["状态"]) || "未分类";
@@ -149,32 +291,76 @@
     return groups;
   };
 
+  AL.sortArchivedActivities = (activities) =>
+    [...activities].sort((a, b) => {
+      const aStamp = Date.parse(AL.clean(a["建立规划时间"]).replace(" ", "T")) || 0;
+      const bStamp = Date.parse(AL.clean(b["建立规划时间"]).replace(" ", "T")) || 0;
+      if (aStamp !== bStamp) {
+        return aStamp - bStamp;
+      }
+      const aNum = AL.toNumber(a["代号"]);
+      const bNum = AL.toNumber(b["代号"]);
+      if (aNum !== bNum) {
+        return aNum - bNum;
+      }
+      return String(a["活动名称"] || "").localeCompare(
+        String(b["活动名称"] || ""),
+        "zh-CN",
+        { numeric: true }
+      );
+    });
+
   AL.renderActivities = (state) => {
-    const groups = state.activityGroups;
+    const groups = AL.visibleActivityGroups(state);
     if (!groups.length) {
       return AL.emptyState("请在 data/activities/ 目录放置活动分组后刷新。");
     }
 
-    const selectedGroup = AL.getGroupById(state, state.activityGroupId);
-    const visibleActivities = selectedGroup ? selectedGroup.activities : [];
+    const statusChoices = AL.statusChoices(state);
+    const activeStatusFilter = AL.activeStatusFilter(state);
+    const allVisibleActivities = AL.allActivities(state);
+    const archivedActivities = allVisibleActivities.filter((activity) => AL.clean(activity["状态"]) === "已归档");
+    const activeActivities = allVisibleActivities.filter((activity) => AL.clean(activity["状态"]) !== "已归档");
+    const filteredActivities = state.filterMode === "status" && activeStatusFilter
+      ? activeActivities.filter((activity) => AL.clean(activity["状态"]) === activeStatusFilter)
+      : activeActivities;
+    const visibleActivities = state.filterMode === "archive"
+      ? archivedActivities
+      : state.showArchived
+        ? [...filteredActivities, ...archivedActivities]
+        : filteredActivities;
+    const groupingMode = state.filterMode === "archive" ? "type" : state.filterMode;
+
     if (!visibleActivities.length) {
       return `
         <div class="toolbar">
-          <div class="segmented" aria-label="活动阶段">
-            ${groups.map((group) => `
-              <button type="button" data-group="${AL.escapeHTML(group.id)}" class="${state.activityGroupId === group.id ? "active" : ""}">${AL.escapeHTML(group.label)}</button>
-            `).join("")}
+          <div class="toolbar-stack">
+            <div class="toolbar-row toolbar-main">
+              <div class="segmented" aria-label="分列方式">
+                <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
+                <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
+                <button type="button" data-mode="archive" class="${state.filterMode === "archive" ? "active" : ""}">已归档</button>
+              </div>
+              <label class="archive-toggle">
+                <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
+                <span>展示已归档</span>
+              </label>
+              <button type="button" class="toolbar-action" data-open-activity-editor>＋ 新增活动</button>
+            </div>
+            ${state.filterMode === "status" ? `
+              <div class="segmented status-filter" aria-label="状态筛选">
+                ${statusChoices.map((status) => `
+                  <button type="button" data-status="${AL.escapeHTML(status)}" class="${activeStatusFilter === status ? "active" : ""}">${AL.escapeHTML(status)}</button>
+                `).join("")}
+              </div>
+            ` : ""}
+            <span class="count-pill">共 0 项</span>
           </div>
-          <div class="segmented" aria-label="分列方式">
-            <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
-            <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
-          </div>
-          <span class="count-pill">${AL.escapeHTML(selectedGroup ? selectedGroup.label : "活动")} · 0 项</span>
         </div>
         ${AL.emptyState("当前阶段暂时没有活动。")}
       `;
     }
-    const groupsHTML = [...AL.groupActivities(visibleActivities, state.filterMode).entries()].map(([name, activities]) => `
+    const groupsHTML = [...AL.groupActivities(visibleActivities, groupingMode).entries()].map(([name, activities]) => `
       <section class="group">
         <h2>${AL.escapeHTML(name)}</h2>
         <span class="group-count">${activities.length}</span>
@@ -186,18 +372,31 @@
 
     return `
       <div class="toolbar">
-        <div class="segmented" aria-label="活动阶段">
-          ${groups.map((group) => `
-            <button type="button" data-group="${AL.escapeHTML(group.id)}" class="${state.activityGroupId === group.id ? "active" : ""}">${AL.escapeHTML(group.label)}</button>
-          `).join("")}
+        <div class="toolbar-stack">
+          <div class="toolbar-row toolbar-main">
+            <div class="segmented" aria-label="分列方式">
+              <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
+              <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
+              <button type="button" data-mode="archive" class="${state.filterMode === "archive" ? "active" : ""}">已归档</button>
+            </div>
+            <label class="archive-toggle">
+              <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
+              <span>展示已归档</span>
+            </label>
+            <button type="button" class="toolbar-action" data-open-activity-editor>＋ 新增活动</button>
+          </div>
+          ${state.filterMode === "status" ? `
+            <div class="segmented status-filter" aria-label="状态筛选">
+              ${statusChoices.map((status) => `
+                <button type="button" data-status="${AL.escapeHTML(status)}" class="${activeStatusFilter === status ? "active" : ""}">${AL.escapeHTML(status)}</button>
+              `).join("")}
+            </div>
+          ` : ""}
+          <span class="count-pill">共 ${visibleActivities.length} 项</span>
         </div>
-        <div class="segmented" aria-label="分列方式">
-          <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
-          <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
-        </div>
-        <span class="count-pill">${AL.escapeHTML(selectedGroup ? selectedGroup.label : "活动")} · 共 ${visibleActivities.length} 项</span>
       </div>
       ${groupsHTML}
+      ${AL.activityEditorModal(state)}
     `;
   };
 

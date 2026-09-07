@@ -65,21 +65,55 @@
   };
 
   AL.fetchJSON = async (path) => {
-    const url = `${AL.resolveSitePath(path)}?v=${Date.now()}`;
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+    const urls = [];
+    if (typeof AL.resolveDataUrl === "function") {
+      const dataUrl = await AL.resolveDataUrl(path);
+      if (dataUrl) {
+        urls.push(dataUrl);
+      }
     }
-    return response.json();
+    urls.push(`${AL.resolveSitePath(path)}?v=${Date.now()}`);
+
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+        }
+        return response.json();
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error(`无法读取 ${path}`);
   };
 
   AL.fetchText = async (path) => {
-    const url = `${AL.resolveSitePath(path)}?v=${Date.now()}`;
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+    const urls = [];
+    if (typeof AL.resolveDataUrl === "function") {
+      const dataUrl = await AL.resolveDataUrl(path);
+      if (dataUrl) {
+        urls.push(dataUrl);
+      }
     }
-    return response.text();
+    urls.push(`${AL.resolveSitePath(path)}?v=${Date.now()}`);
+
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+        }
+        return response.text();
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error(`无法读取 ${path}`);
   };
 
   AL.loadManifestPaths = async (path) => {
@@ -138,7 +172,7 @@
     AL.loadGroupedFiles(
       "data/任务分工/",
       "data/任务分工/index.json",
-      (i) => `data/任务分工/任务分工-P${i}.json`
+      (i) => `data/任务分工/2026/P${i}.json`
     );
 
   AL.loadActivityGroups = async () => {
@@ -216,7 +250,7 @@
   AL.pageMeta = {
     activities: {
       title: "Activities",
-      subtitle: "按阶段查看活动，默认只显示待办。"
+      subtitle: "按状态分列或按活动类型分列，已归档可单独展示。"
     },
     calendar: {
       title: "Calendar",
@@ -224,7 +258,7 @@
     },
     contribution: {
       title: "Contribution",
-      subtitle: "统计待办和已完成的成员次数，不含归档。"
+      subtitle: "统计待分工和已分工的成员次数，不含归档。"
     }
   };
 

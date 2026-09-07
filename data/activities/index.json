@@ -2,7 +2,7 @@
   "groups": [
     {
       "id": "todo",
-      "label": "待办",
+      "label": "待分工",
       "default": true,
       "includeInCalendar": true,
       "includeInContribution": true,
@@ -12,7 +12,7 @@
     },
     {
       "id": "done",
-      "label": "已完成",
+      "label": "已分工",
       "includeInCalendar": true,
       "includeInContribution": true,
       "files": [
