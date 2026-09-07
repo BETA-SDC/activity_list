@@ -202,11 +202,20 @@ button {
 
 .toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
+}
+
+.toolbar-stack {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
 }
 
 .toolbar-row {
@@ -214,6 +223,10 @@ button {
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.toolbar-main {
+  width: 100%;
 }
 
 .segmented {
@@ -250,7 +263,7 @@ button {
 }
 
 .status-filter {
-  margin-top: 0.35rem;
+  margin-top: 0;
 }
 
 .archive-toggle {
@@ -271,6 +284,7 @@ button {
 .toolbar-action {
   display: inline-flex;
   align-items: center;
+  margin-left: auto;
   min-height: 2.2rem;
   padding: 0 0.85rem;
   border: 0.0625rem solid rgba(22, 121, 74, 0.18);

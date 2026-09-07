@@ -301,7 +301,45 @@
     if (!visibleActivities.length) {
       return `
         <div class="toolbar">
-          <div class="toolbar-row">
+          <div class="toolbar-stack">
+            <div class="toolbar-row toolbar-main">
+              <div class="segmented" aria-label="分列方式">
+                <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
+                <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
+              </div>
+              <label class="archive-toggle">
+                <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
+                <span>展示已归档</span>
+              </label>
+              <button type="button" class="toolbar-action" data-open-activity-editor>＋ 新增活动</button>
+            </div>
+            ${state.filterMode === "status" ? `
+              <div class="segmented status-filter" aria-label="状态筛选">
+                ${statusChoices.map((status) => `
+                  <button type="button" data-status="${AL.escapeHTML(status)}" class="${activeStatusFilter === status ? "active" : ""}">${AL.escapeHTML(status)}</button>
+                `).join("")}
+              </div>
+            ` : ""}
+            <span class="count-pill">共 0 项</span>
+          </div>
+        </div>
+        ${AL.emptyState("当前阶段暂时没有活动。")}
+      `;
+    }
+    const groupsHTML = [...AL.groupActivities(visibleActivities, state.filterMode).entries()].map(([name, activities]) => `
+      <section class="group">
+        <h2>${AL.escapeHTML(name)}</h2>
+        <span class="group-count">${activities.length}</span>
+      </section>
+      <div class="activity-grid">
+        ${activities.map((activity) => AL.activityCard(state, activity)).join("")}
+      </div>
+    `).join("");
+
+    return `
+      <div class="toolbar">
+        <div class="toolbar-stack">
+          <div class="toolbar-row toolbar-main">
             <div class="segmented" aria-label="分列方式">
               <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
               <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
@@ -319,42 +357,8 @@
               `).join("")}
             </div>
           ` : ""}
-          <span class="count-pill">共 0 项</span>
+          <span class="count-pill">共 ${visibleActivities.length} 项</span>
         </div>
-        ${AL.emptyState("当前阶段暂时没有活动。")}
-      `;
-    }
-    const groupsHTML = [...AL.groupActivities(visibleActivities, state.filterMode).entries()].map(([name, activities]) => `
-      <section class="group">
-        <h2>${AL.escapeHTML(name)}</h2>
-        <span class="group-count">${activities.length}</span>
-      </section>
-      <div class="activity-grid">
-        ${activities.map((activity) => AL.activityCard(state, activity)).join("")}
-      </div>
-    `).join("");
-
-    return `
-      <div class="toolbar">
-        <div class="toolbar-row">
-          <div class="segmented" aria-label="分列方式">
-            <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
-            <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
-          </div>
-          <label class="archive-toggle">
-            <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
-            <span>展示已归档</span>
-          </label>
-          <button type="button" class="toolbar-action" data-open-activity-editor>＋ 新增活动</button>
-        </div>
-        ${state.filterMode === "status" ? `
-          <div class="segmented status-filter" aria-label="状态筛选">
-            ${statusChoices.map((status) => `
-              <button type="button" data-status="${AL.escapeHTML(status)}" class="${activeStatusFilter === status ? "active" : ""}">${AL.escapeHTML(status)}</button>
-            `).join("")}
-          </div>
-        ` : ""}
-        <span class="count-pill">共 ${visibleActivities.length} 项</span>
       </div>
       ${groupsHTML}
       ${AL.activityEditorModal(state)}
