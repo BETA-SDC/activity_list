@@ -11,7 +11,10 @@
     calendarSourceIds: [],
     filterMode: "status",
     statusFilter: "待分工",
-    showArchived: false
+    showArchived: false,
+    activityEditorOpen: false,
+    activityEditorMode: "create",
+    activityEditorDraft: AL.activityEditorDefaults()
   };
 
   const loadData = async () => {
@@ -80,6 +83,33 @@
       AL.render(state, app);
     }
 
+    const openEditorButton = event.target.closest("[data-open-activity-editor]");
+    if (openEditorButton) {
+      state.activityEditorMode = "create";
+      state.activityEditorDraft = AL.activityEditorDefaults();
+      state.activityEditorOpen = true;
+      AL.render(state, app);
+      return;
+    }
+
+    const editButton = event.target.closest("[data-edit-activity]");
+    if (editButton) {
+      const code = editButton.dataset.editActivity;
+      const activity = AL.allActivities(state).find((item) => AL.clean(item["代号"]) === code);
+      state.activityEditorMode = "edit";
+      state.activityEditorDraft = AL.activityEditorDraftFrom(activity || {});
+      state.activityEditorOpen = true;
+      AL.render(state, app);
+      return;
+    }
+
+    const closeEditorButton = event.target.closest("[data-close-activity-editor]");
+    if (closeEditorButton) {
+      state.activityEditorOpen = false;
+      AL.render(state, app);
+      return;
+    }
+
     const exportButton = event.target.closest("#exportCalendarBtn");
     if (exportButton) {
       AL.exportSelectedCalendar(state);
@@ -108,6 +138,31 @@
     if (AL.currentPage() === "calendar") {
       AL.render(state, app);
     }
+  });
+
+  document.addEventListener("input", (event) => {
+    const field = event.target.closest("[data-activity-field]");
+    if (!field || !state.activityEditorOpen) {
+      return;
+    }
+
+    const key = field.dataset.activityField;
+    if (!key) {
+      return;
+    }
+
+    state.activityEditorDraft = {
+      ...state.activityEditorDraft,
+      [key]: field.value
+    };
+  });
+
+  document.addEventListener("submit", (event) => {
+    const form = event.target.closest(".activity-editor-form");
+    if (!form) {
+      return;
+    }
+    event.preventDefault();
   });
 
   init();

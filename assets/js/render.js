@@ -45,6 +45,106 @@
     return choices.includes(state.statusFilter) ? state.statusFilter : (choices[0] || "待分工");
   };
 
+  AL.activityEditorDefaults = () => ({
+    "代号": "",
+    "活动名称": "",
+    "状态": "待分工",
+    "详情": "",
+    "活动类型": "",
+    "总负责人": "",
+    "预计月份(Y)": "",
+    "预计日期(D)": "",
+    "开始时间(H)": "",
+    "地点": ""
+  });
+
+  AL.activityEditorDraftFrom = (activity) => ({
+    ...AL.activityEditorDefaults(),
+    ...Object.fromEntries(Object.entries(activity || {}).filter(([, value]) => value !== undefined && value !== null))
+  });
+
+  AL.activityEditorTitle = (state) =>
+    state.activityEditorMode === "edit" ? "编辑活动卡片" : "新增活动卡片";
+
+  AL.activityEditorHint = "表单模板直接对应 data/activities 的字段，后续接本地保存时无需再做映射。";
+
+  AL.activityEditorOptionList = () => ["待分工", "已分工", "已归档"];
+
+  AL.activityEditorField = (draft, key, label, type = "text", extra = "") => {
+    const value = AL.clean(draft?.[key]);
+    const id = `activity-field-${key.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "")}`;
+    if (type === "textarea") {
+      return `
+        <label class="form-field form-field-full" for="${id}">
+          <span>${AL.escapeHTML(label)}</span>
+          <textarea id="${id}" data-activity-field="${AL.escapeHTML(key)}" rows="4" placeholder="请输入${AL.escapeHTML(label)}">${AL.escapeHTML(value)}</textarea>
+        </label>
+      `;
+    }
+    if (type === "select") {
+      return `
+        <label class="form-field" for="${id}">
+          <span>${AL.escapeHTML(label)}</span>
+          <select id="${id}" data-activity-field="${AL.escapeHTML(key)}">
+            ${AL.activityEditorOptionList().map((option) => `
+              <option value="${AL.escapeHTML(option)}" ${option === value ? "selected" : ""}>${AL.escapeHTML(option)}</option>
+            `).join("")}
+          </select>
+        </label>
+      `;
+    }
+    return `
+      <label class="form-field" for="${id}">
+        <span>${AL.escapeHTML(label)}</span>
+        <input id="${id}" type="${type}" data-activity-field="${AL.escapeHTML(key)}" value="${AL.escapeHTML(value)}" placeholder="请输入${AL.escapeHTML(label)}"${extra}>
+      </label>
+    `;
+  };
+
+  AL.activityEditorModal = (state) => {
+    if (!state.activityEditorOpen) {
+      return "";
+    }
+
+    const draft = state.activityEditorDraft || AL.activityEditorDefaults();
+    const title = AL.activityEditorTitle(state);
+
+    return `
+      <div class="editor-backdrop" data-close-activity-editor></div>
+      <section class="editor-modal" role="dialog" aria-modal="true" aria-labelledby="activityEditorTitle">
+        <div class="editor-head">
+          <div>
+            <p class="editor-eyebrow">Activities</p>
+            <h2 id="activityEditorTitle">${AL.escapeHTML(title)}</h2>
+            <p class="editor-hint">${AL.escapeHTML(AL.activityEditorHint)}</p>
+          </div>
+          <button type="button" class="editor-close" data-close-activity-editor aria-label="关闭">×</button>
+        </div>
+        <form class="activity-editor-form" autocomplete="off">
+          <div class="editor-grid">
+            ${AL.activityEditorField(draft, "代号", "代号")}
+            ${AL.activityEditorField(draft, "活动名称", "活动名称")}
+            ${AL.activityEditorField(draft, "状态", "状态", "select")}
+            ${AL.activityEditorField(draft, "活动类型", "活动类型")}
+            ${AL.activityEditorField(draft, "总负责人", "总负责人")}
+            ${AL.activityEditorField(draft, "详情", "详情", "textarea")}
+            ${AL.activityEditorField(draft, "预计月份(Y)", "预计月份(Y)", "text")}
+            ${AL.activityEditorField(draft, "预计日期(D)", "预计日期(D)", "text")}
+            ${AL.activityEditorField(draft, "开始时间(H)", "开始时间(H)", "text")}
+            ${AL.activityEditorField(draft, "地点", "地点")}
+          </div>
+          <div class="editor-footer">
+            <div class="editor-note">当前只提供填写模板，后续会接入本地保存与导出。</div>
+            <div class="editor-actions">
+              <button type="button" class="secondary-btn" data-close-activity-editor>取消</button>
+              <button type="submit" class="primary-btn" disabled>保存模板</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    `;
+  };
+
   AL.emptyState = (message) => `
     <div class="state-card">
       <div>
@@ -140,7 +240,10 @@
             <span class="badge type">${AL.escapeHTML(type)}</span>
           </div>
         </div>
-        <h3>${AL.escapeHTML(name)}</h3>
+        <div class="card-title-row">
+          <h3>${AL.escapeHTML(name)}</h3>
+          <button type="button" class="card-edit-btn" data-edit-activity="${AL.escapeHTML(code)}">编辑</button>
+        </div>
         ${detail ? `<p class="detail">${AL.escapeHTML(detail)}</p>` : ""}
         ${taskDetailsHTML}
         <dl class="meta">
@@ -207,6 +310,7 @@
               <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
               <span>展示已归档</span>
             </label>
+            <button type="button" class="toolbar-action" data-open-activity-editor>＋ 新增活动</button>
           </div>
           ${state.filterMode === "status" ? `
             <div class="segmented status-filter" aria-label="状态筛选">
@@ -241,6 +345,7 @@
             <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
             <span>展示已归档</span>
           </label>
+          <button type="button" class="toolbar-action" data-open-activity-editor>＋ 新增活动</button>
         </div>
         ${state.filterMode === "status" ? `
           <div class="segmented status-filter" aria-label="状态筛选">
@@ -252,6 +357,7 @@
         <span class="count-pill">共 ${visibleActivities.length} 项</span>
       </div>
       ${groupsHTML}
+      ${AL.activityEditorModal(state)}
     `;
   };
 
