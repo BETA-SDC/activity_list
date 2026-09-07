@@ -294,9 +294,12 @@
     const filteredActivities = state.filterMode === "status" && activeStatusFilter
       ? activeActivities.filter((activity) => AL.clean(activity["状态"]) === activeStatusFilter)
       : activeActivities;
-    const visibleActivities = state.showArchived
-      ? [...filteredActivities, ...archivedActivities]
-      : filteredActivities;
+    const visibleActivities = state.filterMode === "archive"
+      ? archivedActivities
+      : state.showArchived
+        ? [...filteredActivities, ...archivedActivities]
+        : filteredActivities;
+    const groupingMode = state.filterMode === "archive" ? "type" : state.filterMode;
 
     if (!visibleActivities.length) {
       return `
@@ -306,6 +309,7 @@
               <div class="segmented" aria-label="分列方式">
                 <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
                 <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
+                <button type="button" data-mode="archive" class="${state.filterMode === "archive" ? "active" : ""}">已归档</button>
               </div>
               <label class="archive-toggle">
                 <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
@@ -326,7 +330,7 @@
         ${AL.emptyState("当前阶段暂时没有活动。")}
       `;
     }
-    const groupsHTML = [...AL.groupActivities(visibleActivities, state.filterMode).entries()].map(([name, activities]) => `
+    const groupsHTML = [...AL.groupActivities(visibleActivities, groupingMode).entries()].map(([name, activities]) => `
       <section class="group">
         <h2>${AL.escapeHTML(name)}</h2>
         <span class="group-count">${activities.length}</span>
@@ -343,6 +347,7 @@
             <div class="segmented" aria-label="分列方式">
               <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
               <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
+              <button type="button" data-mode="archive" class="${state.filterMode === "archive" ? "active" : ""}">已归档</button>
             </div>
             <label class="archive-toggle">
               <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
