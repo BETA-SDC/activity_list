@@ -16,6 +16,10 @@
   --blue: #7197e7;
   --blue-dark: #587bdb;
   --blue-soft: #e1ebff;
+  --calendar-tasks: rgba(226, 146, 52, 0.18);
+  --calendar-tasks-strong: rgba(226, 146, 52, 0.9);
+  --calendar-external: rgba(24, 69, 136, 0.18);
+  --calendar-external-strong: rgba(24, 69, 136, 0.9);
   --amber: #a86a16;
   --shadow: 0 0.5rem 1.5rem rgba(44, 31, 25, 0.08);
   --shadow-soft: 0 0.25rem 0.875rem rgba(44, 31, 25, 0.06);
@@ -639,9 +643,29 @@ button {
   cursor: pointer;
 }
 
+.source-toggle.source-tasks {
+  border-color: rgba(226, 146, 52, 0.32);
+  color: #8c5717;
+  background: var(--calendar-tasks);
+}
+
+.source-toggle.source-external {
+  border-color: rgba(24, 69, 136, 0.32);
+  color: #184588;
+  background: var(--calendar-external);
+}
+
 .source-toggle input {
   margin: 0;
   accent-color: var(--green);
+}
+
+.source-toggle.source-tasks input {
+  accent-color: rgb(226, 146, 52);
+}
+
+.source-toggle.source-external input {
+  accent-color: rgb(24, 69, 136);
 }
 
 .source-toggle em {
@@ -650,6 +674,14 @@ button {
   font-style: normal;
   font-size: 0.7rem;
   font-weight: 700;
+}
+
+.source-toggle.source-tasks em {
+  color: var(--calendar-tasks-strong);
+}
+
+.source-toggle.source-external em {
+  color: var(--calendar-external-strong);
 }
 
 .calendar-actions {
@@ -746,13 +778,20 @@ button {
 }
 
 .cal-event.source-tasks {
-  color: #275f12;
-  background: #def6b9;
+  color: #8c5717;
+  background: var(--calendar-tasks);
+  box-shadow: inset 0 0 0 0.0625rem rgba(226, 146, 52, 0.22);
 }
 
 .cal-event.source-external {
-  color: #335d9d;
-  background: #dfeaff;
+  color: #184588;
+  background: var(--calendar-external);
+  box-shadow: inset 0 0 0 0.0625rem rgba(24, 69, 136, 0.22);
+}
+
+.cal-event.source-tasks .event-code,
+.cal-event.source-external .event-code {
+  font-weight: 850;
 }
 
 .cal-event .event-name {

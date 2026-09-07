@@ -879,7 +879,7 @@
         <div class="toolbar calendar-toolbar">
           <div class="calendar-sources">
             ${state.calendarSources.map((source) => `
-              <label class="source-toggle">
+              <label class="source-toggle source-${escapeHTML(source.id)}">
                 <input type="checkbox" data-source="${escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
                 <span>${escapeHTML(source.label)}</span>
                 <em>${source.events.length}</em>
@@ -901,7 +901,7 @@
         <div class="toolbar calendar-toolbar">
           <div class="calendar-sources">
             ${state.calendarSources.map((source) => `
-              <label class="source-toggle">
+              <label class="source-toggle source-${escapeHTML(source.id)}">
                 <input type="checkbox" data-source="${escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
                 <span>${escapeHTML(source.label)}</span>
                 <em>${source.events.length}</em>
@@ -981,7 +981,7 @@
       <div class="toolbar calendar-toolbar">
         <div class="calendar-sources">
           ${state.calendarSources.map((source) => `
-            <label class="source-toggle">
+            <label class="source-toggle source-${escapeHTML(source.id)}">
               <input type="checkbox" data-source="${escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
               <span>${escapeHTML(source.label)}</span>
               <em>${source.events.length}</em>
