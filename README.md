@@ -1,6 +1,6 @@
 # 西湖大学β书院活动中心：数据维护说明
 
-该网站会自动读取 `data/activities`、`data/calendar` 和 `data/任务分工/2026` 文件夹下的分组数据，向内部成员展示项目计划与分工。
+该网站会自动读取 `data/activities`、`data/calendar` 和 `data/任务分工` 文件夹下的分组数据，向内部成员展示项目计划与分工。
 网站包含三个页面：
 - Activities：按状态分列或按活动类型分列，已归档可单独展示。
 - Calendar：可勾选任务带入与外部导入，并导出 Apple Calendar/ICS。
@@ -14,7 +14,7 @@
 - `data/activities/archive.json`
 - `data/calendar/index.json`
 - `data/calendar/external.ics`
-- `data/任务分工/2026` 文件夹下的分工文件，优先读取 `data/任务分工/2026/index.json`
+- `data/任务分工` 文件夹下的分工文件，优先读取 `data/任务分工/index.json`
 
 页面代码已经拆成三个静态页面和两个共享静态文件：
 
@@ -167,11 +167,11 @@ END:VCALENDAR
 | `LOCATION` | 可空 | 事件地点 |
 | `DESCRIPTION` | 可空 | 额外说明 |
 
-## 四、`任务分工/2026` 文件格式模板
+## 四、`任务分工` 文件格式模板
 
-文件位置：`data/任务分工/2026` 文件夹。
+文件位置：分工文件放在 `data/任务分工/2026` 文件夹，通用清单放在 `data/任务分工/index.json`。
 
-建议先在 `data/任务分工/2026/index.json` 中列出需要加载的文件，再配合连续编号管理：
+建议先在 `data/任务分工/index.json` 中列出需要加载的文件，再配合连续编号管理：
 
 ```text
 P1.json
@@ -221,7 +221,7 @@ P3.json
 
 ### 2. 用清单文件管理分工文件
 
-如果存在 `data/任务分工/2026/index.json`，网站会优先按清单读取，适合长期维护和不连续编号的情况。
+如果存在 `data/任务分工/index.json`，网站会优先按清单读取，适合长期维护和不连续编号的情况。
 
 推荐写法：
 

@@ -170,8 +170,8 @@
 
   AL.loadTaskFiles = async () =>
     AL.loadGroupedFiles(
-      "data/任务分工/2026/",
-      "data/任务分工/2026/index.json",
+      "data/任务分工/",
+      "data/任务分工/index.json",
       (i) => `data/任务分工/2026/P${i}.json`
     );
 
