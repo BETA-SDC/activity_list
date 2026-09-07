@@ -81,6 +81,15 @@
     return response.json();
   }
 
+  async function fetchText(path) {
+    const url = `${resolveSitePath(path)}?v=${Date.now()}`;
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+    }
+    return response.text();
+  }
+
   async function loadManifestPaths(path) {
     try {
       const manifest = await fetchJSON(path);
@@ -323,51 +332,6 @@
     };
   };
 
-  const parseFlexibleDate = (value) => {
-    const text = clean(value);
-    if (!text) {
-      return null;
-    }
-
-    const full = text.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
-    if (full) {
-      return {
-        year: Number(full[1]),
-        month: Number(full[2]),
-        day: Number(full[3])
-      };
-    }
-
-    const cn = text.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日?$/);
-    if (cn) {
-      return {
-        year: Number(cn[1]),
-        month: Number(cn[2]),
-        day: Number(cn[3])
-      };
-    }
-
-    const short = text.match(/^(\d{1,2})[./-](\d{1,2})$/);
-    if (short) {
-      return {
-        year: new Date().getFullYear(),
-        month: Number(short[1]),
-        day: Number(short[2])
-      };
-    }
-
-    const cnShort = text.match(/^(\d{1,2})月(\d{1,2})日?$/);
-    if (cnShort) {
-      return {
-        year: new Date().getFullYear(),
-        month: Number(cnShort[1]),
-        day: Number(cnShort[2])
-      };
-    }
-
-    return null;
-  };
-
   const formatDateParts = ({ year, month, day }) =>
     `${String(year).padStart(4, "0")}${pad2(month)}${pad2(day)}`;
 
@@ -389,6 +353,162 @@
       .replace(/\r?\n/g, "\\n")
       .replace(/;/g, "\\;")
       .replace(/,/g, "\\,");
+
+  const unfoldICS = (text) =>
+    String(text || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/\n[ \t]/g, "");
+
+  const parseICSTimestamp = (value, params = "") => {
+    const text = clean(value);
+    if (!text) {
+      return null;
+    }
+
+    const allDay = /VALUE=DATE/i.test(params) || /^\d{8}$/.test(text);
+    if (allDay) {
+      const match = text.match(/^(\d{4})(\d{2})(\d{2})$/);
+      if (!match) {
+        return null;
+      }
+      return {
+        year: Number(match[1]),
+        month: Number(match[2]),
+        day: Number(match[3]),
+        allDay: true
+      };
+    }
+
+    const utc = text.endsWith("Z");
+    const raw = utc ? text.slice(0, -1) : text;
+    const match = raw.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})$/);
+    if (!match) {
+      return null;
+    }
+
+    const date = utc
+      ? new Date(Date.UTC(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3]),
+        Number(match[4]),
+        Number(match[5]),
+        Number(match[6])
+      ))
+      : new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3]),
+        Number(match[4]),
+        Number(match[5]),
+        Number(match[6])
+      );
+
+    return {
+      year: utc ? date.getUTCFullYear() : date.getFullYear(),
+      month: (utc ? date.getUTCMonth() : date.getMonth()) + 1,
+      day: utc ? date.getUTCDate() : date.getDate(),
+      hour: utc ? date.getUTCHours() : date.getHours(),
+      minute: utc ? date.getUTCMinutes() : date.getMinutes(),
+      second: utc ? date.getUTCSeconds() : date.getSeconds(),
+      allDay: false
+    };
+  };
+
+  const parseICSFile = (text) => {
+    const events = [];
+    const lines = unfoldICS(text).split("\n").map((line) => line.trimEnd()).filter(Boolean);
+    let current = null;
+
+    for (const line of lines) {
+      if (line === "BEGIN:VEVENT") {
+        current = {};
+        continue;
+      }
+      if (line === "END:VEVENT") {
+        if (current) {
+          events.push(current);
+        }
+        current = null;
+        continue;
+      }
+      if (!current) {
+        continue;
+      }
+
+      const colon = line.indexOf(":");
+      if (colon < 0) {
+        continue;
+      }
+      const head = line.slice(0, colon);
+      const value = line.slice(colon + 1);
+      const [name, ...params] = head.split(";");
+      const key = name.toUpperCase();
+      current[key] ||= [];
+      current[key].push({ params: params.join(";"), value });
+    }
+
+    return events;
+  };
+
+  const buildEventFromICS = (event, source) => {
+    const startEntry = event.DTSTART?.[0];
+    if (!startEntry) {
+      return null;
+    }
+
+    const startStamp = parseICSTimestamp(startEntry.value, startEntry.params);
+    if (!startStamp) {
+      return null;
+    }
+
+    const endEntry = event.DTEND?.[0];
+    const endStamp = endEntry ? parseICSTimestamp(endEntry.value, endEntry.params) : null;
+    const title = clean(event.SUMMARY?.[0]?.value) || "未命名事件";
+    const description = clean(event.DESCRIPTION?.[0]?.value);
+    const location = clean(event.LOCATION?.[0]?.value);
+    const uid = clean(event.UID?.[0]?.value) || `${source.id}:${title}`;
+    const allDay = startStamp.allDay === true;
+    const start = allDay
+      ? formatDateParts(startStamp)
+      : formatDateTimeParts(startStamp, startStamp);
+    const end = allDay
+      ? endStamp && endStamp.allDay
+        ? formatDateParts(endStamp)
+        : formatDateParts(addDays(startStamp.year, startStamp.month, startStamp.day, 1))
+      : endStamp && !endStamp.allDay
+        ? formatDateTimeParts(endStamp, endStamp)
+        : formatDateTimeParts(
+          {
+            year: startStamp.year,
+            month: startStamp.month,
+            day: startStamp.day
+          },
+          {
+            hour: (startStamp.hour + 1) % 24,
+            minute: startStamp.minute,
+            second: startStamp.second
+          }
+        );
+
+    return {
+      id: uid,
+      sourceId: source.id,
+      sourceLabel: source.label,
+      title,
+      year: startStamp.year,
+      month: startStamp.month,
+      day: startStamp.day,
+      allDay,
+      start,
+      end,
+      location,
+      detail: description,
+      summary: title,
+      sortTime: allDay ? 0 : ((startStamp.hour || 0) * 60) + (startStamp.minute || 0)
+    };
+  };
 
   const foldICSLines = (lines) =>
     lines.flatMap((line) => {
@@ -587,73 +707,6 @@
     };
   };
 
-  const normalizeExternalEvent = (record, source) => {
-    const date = parseFlexibleDate(
-      record.date || record.日期 || record["日期(D)"] || record["日期"] || record.when
-    );
-    if (!date) {
-      return null;
-    }
-
-    const startClock = parseClock(record.startTime || record.开始时间 || record["开始时间(H)"]);
-    const endClock = parseClock(record.endTime || record.结束时间 || record["结束时间(H)"]);
-    const title = clean(record.title || record.标题 || record.name || record.名称) || "未命名事件";
-    const location = clean(record.location || record.地点);
-    const notes = clean(record.notes || record.备注 || record.detail || record.说明);
-    const allDayValue = record.allDay ?? record.全天;
-    const allDay = typeof allDayValue === "boolean" ? allDayValue : !startClock;
-    const idSeed = clean(record.id || record.代号 || title);
-    const startClockValue = startClock || { hour: 0, minute: 0, second: 0 };
-    const startDateTime = new Date(
-      date.year,
-      date.month - 1,
-      date.day,
-      startClockValue.hour,
-      startClockValue.minute,
-      startClockValue.second
-    );
-    const endDateTime = new Date(startDateTime.getTime());
-    if (!endClock) {
-      endDateTime.setHours(endDateTime.getHours() + 1);
-    }
-    const start = allDay
-      ? formatDateParts(date)
-      : formatDateTimeParts(date, startClockValue);
-    const end = allDay
-      ? formatDateParts(addDays(date.year, date.month, date.day, 1))
-      : endClock
-        ? formatDateTimeParts(date, endClock)
-        : formatDateTimeParts(
-            {
-              year: endDateTime.getFullYear(),
-              month: endDateTime.getMonth() + 1,
-              day: endDateTime.getDate()
-            },
-            {
-              hour: endDateTime.getHours(),
-              minute: endDateTime.getMinutes(),
-              second: endDateTime.getSeconds()
-            }
-          );
-
-    return {
-      id: `${source.id}:${idSeed}:${date.year}-${pad2(date.month)}-${pad2(date.day)}`,
-      sourceId: source.id,
-      sourceLabel: source.label,
-      title,
-      year: date.year,
-      month: date.month,
-      day: date.day,
-      allDay,
-      start,
-      end,
-      location,
-      detail: notes,
-      summary: title,
-      sortTime: allDay ? 0 : ((startClock ? startClock.hour : 0) * 60) + (startClock ? startClock.minute : 0)
-    };
-  };
-
   const loadCalendarSourceManifest = async () => {
     const fallback = [
       {
@@ -668,7 +721,7 @@
         id: "external",
         label: "外部导入",
         kind: "file",
-        file: "external.json",
+        file: "external.ics",
         default: true,
         includeInCalendar: true,
         includeInContribution: false
@@ -699,21 +752,21 @@
       files.push(source.file);
     }
     if (!files.length) {
-      files.push("external.json");
+      files.push("external.ics");
     }
 
     const items = [];
     for (const file of files) {
       try {
         const path = joinSitePath("data/calendar/", file);
-        const data = await fetchJSON(path);
-        items.push(...normalizeArray(data).filter(hasContent));
+        const data = await fetchText(path);
+        items.push(...parseICSFile(data).map((entry) => buildEventFromICS(entry, source)).filter(Boolean));
       } catch (error) {
         // 外部日历文件缺失时跳过，避免影响其他来源。
       }
     }
 
-    return items.map((record) => normalizeExternalEvent(record, source)).filter(Boolean);
+    return items;
   };
 
   const loadCalendarSources = async () => {

@@ -12,7 +12,7 @@
       "id": "external",
       "label": "外部导入",
       "kind": "file",
-      "file": "external.json",
+      "file": "external.ics",
       "default": true,
       "includeInCalendar": true,
       "includeInContribution": false

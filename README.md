@@ -13,7 +13,7 @@
 - `data/activities/done.json`
 - `data/activities/archive.json`
 - `data/calendar/index.json`
-- `data/calendar/external.json`
+- `data/calendar/external.ics`
 - `data/任务分工` 文件夹下的分工文件，优先读取 `data/任务分工/index.json`
 
 页面代码已经拆成三个静态页面和两个共享静态文件：
@@ -98,7 +98,7 @@
 
 文件位置：`data/calendar/` 文件夹。
 
-`index.json` 用来描述日历来源。`kind` 为 `activity` 的来源会从活动阶段自动生成日历事件，`kind` 为 `file` 的来源会从 JSON 文件读取额外事件。
+`index.json` 用来描述日历来源。`kind` 为 `activity` 的来源会从活动阶段自动生成日历事件，`kind` 为 `file` 的来源会从 `.ics` 文件读取额外事件。
 
 ```json
 {
@@ -115,7 +115,7 @@
       "id": "external",
       "label": "外部导入",
       "kind": "file",
-      "file": "external.json",
+      "file": "external.ics",
       "default": true,
       "includeInCalendar": true,
       "includeInContribution": false
@@ -124,33 +124,36 @@
 }
 ```
 
-外部导入日历文件是一个数组，每个事件可写这些字段：
+外部导入日历文件使用标准 `.ics` 格式，适合直接用 Apple Calendar、Outlook、Google Calendar 互通。每个事件写成一个 `VEVENT`：
 
-```json
-[
-  {
-    "标题": "示例事件",
-    "日期": "2026-09-01",
-    "开始时间": "14:00",
-    "结束时间": "15:00",
-    "全天": false,
-    "地点": "H4-121",
-    "备注": "可选备注"
-  }
-]
+```ics
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//BETA-SDC//Activity List//CN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:demo-1@beta-sdc
+DTSTAMP:20260907T000000Z
+DTSTART:20260901T140000
+DTEND:20260901T150000
+SUMMARY:示例事件
+LOCATION:H4-121
+DESCRIPTION:可选备注
+END:VEVENT
+END:VCALENDAR
 ```
 
 字段说明：
 
 | 字段 | 是否必填 | 说明 |
 | --- | --- | --- |
-| `标题` | 必填 | 日历事件标题 |
-| `日期` | 必填 | 支持 `2026-09-01`、`2026/9/1`、`2026年9月1日` |
-| `开始时间` | 可空 | 例如 `14:00` |
-| `结束时间` | 可空 | 例如 `15:00` |
-| `全天` | 可空 | 写 `true` 时导出为全天事件 |
-| `地点` | 可空 | 事件地点 |
-| `备注` | 可空 | 额外说明 |
+| `UID` | 必填 | 事件唯一编号 |
+| `DTSTART` | 必填 | 开始时间，全天事件可写 `VALUE=DATE` |
+| `DTEND` | 建议填写 | 结束时间，全天事件通常写成次日日期 |
+| `SUMMARY` | 必填 | 日历事件标题 |
+| `LOCATION` | 可空 | 事件地点 |
+| `DESCRIPTION` | 可空 | 额外说明 |
 
 ## 四、`任务分工` 文件格式模板
 
@@ -225,7 +228,7 @@
 ### 3. 页面读取逻辑
 
 - Activities：按阶段显示单独分组，不把待办、已完成、已归档混在一屏。
-- Calendar：可切换任务带入与外部导入，导出时只包含当前勾选来源。
+- Calendar：可切换任务带入与外部导入，外部导入以 `.ics` 存储，导出时只包含当前勾选来源。
 - Contribution：统计 `includeInContribution` 为 `true` 的阶段中的总负责人次数（绿色）以及分工负责人次数（蓝色）。
 
 ### 4. 更新后要检查
