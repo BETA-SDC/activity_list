@@ -23,6 +23,9 @@
 - `pages/contribution.html`
 - `index.html`（跳转入口）
 - `assets/css/styles.css`
+- `assets/js/shared.js`
+- `assets/js/calendar.js`
+- `assets/js/render.js`
 - `assets/js/app.js`
 
 请所有同学在改动文件前先阅读下面的格式要求，避免页面读取失败或显示异常。
