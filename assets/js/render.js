@@ -66,7 +66,7 @@
   AL.activityEditorTitle = (state) =>
     state.activityEditorMode === "edit" ? "编辑活动卡片" : "新增活动卡片";
 
-  AL.activityEditorHint = "表单模板直接对应 data/activities 的字段，后续接本地保存时无需再做映射。";
+  AL.activityEditorHint = "保存会写回本地 data/activities 文件。";
 
   AL.activityEditorOptionList = () => ["待分工", "已分工", "已归档"];
 
@@ -137,7 +137,7 @@
             <div class="editor-note">当前只提供填写模板，后续会接入本地保存与导出。</div>
             <div class="editor-actions">
               <button type="button" class="secondary-btn" data-close-activity-editor>取消</button>
-              <button type="submit" class="primary-btn" disabled>保存模板</button>
+              <button type="submit" class="primary-btn">保存到本地</button>
             </div>
           </div>
         </form>

@@ -65,21 +65,55 @@
   };
 
   AL.fetchJSON = async (path) => {
-    const url = `${AL.resolveSitePath(path)}?v=${Date.now()}`;
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+    const urls = [];
+    if (typeof AL.resolveDataUrl === "function") {
+      const dataUrl = await AL.resolveDataUrl(path);
+      if (dataUrl) {
+        urls.push(dataUrl);
+      }
     }
-    return response.json();
+    urls.push(`${AL.resolveSitePath(path)}?v=${Date.now()}`);
+
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+        }
+        return response.json();
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error(`无法读取 ${path}`);
   };
 
   AL.fetchText = async (path) => {
-    const url = `${AL.resolveSitePath(path)}?v=${Date.now()}`;
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+    const urls = [];
+    if (typeof AL.resolveDataUrl === "function") {
+      const dataUrl = await AL.resolveDataUrl(path);
+      if (dataUrl) {
+        urls.push(dataUrl);
+      }
     }
-    return response.text();
+    urls.push(`${AL.resolveSitePath(path)}?v=${Date.now()}`);
+
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
+        }
+        return response.text();
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error(`无法读取 ${path}`);
   };
 
   AL.loadManifestPaths = async (path) => {

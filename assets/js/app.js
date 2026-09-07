@@ -14,7 +14,8 @@
     showArchived: false,
     activityEditorOpen: false,
     activityEditorMode: "create",
-    activityEditorDraft: AL.activityEditorDefaults()
+    activityEditorDraft: AL.activityEditorDefaults(),
+    activityEditorOriginalCode: ""
   };
 
   const loadData = async () => {
@@ -87,6 +88,7 @@
     if (openEditorButton) {
       state.activityEditorMode = "create";
       state.activityEditorDraft = AL.activityEditorDefaults();
+      state.activityEditorOriginalCode = "";
       state.activityEditorOpen = true;
       AL.render(state, app);
       return;
@@ -98,6 +100,7 @@
       const activity = AL.allActivities(state).find((item) => AL.clean(item["代号"]) === code);
       state.activityEditorMode = "edit";
       state.activityEditorDraft = AL.activityEditorDraftFrom(activity || {});
+      state.activityEditorOriginalCode = code;
       state.activityEditorOpen = true;
       AL.render(state, app);
       return;
@@ -163,6 +166,16 @@
       return;
     }
     event.preventDefault();
+    (async () => {
+      try {
+        await AL.saveActivityDraft(state.activityEditorDraft, state.activityEditorOriginalCode);
+        state.activityEditorOpen = false;
+        state.activityEditorOriginalCode = "";
+        await init();
+      } catch (error) {
+        AL.showError(app, error);
+      }
+    })();
   });
 
   init();
