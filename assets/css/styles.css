@@ -614,6 +614,67 @@ button {
   padding: 1rem;
 }
 
+.calendar-toolbar {
+  align-items: flex-start;
+}
+
+.calendar-sources {
+  display: flex;
+  flex: 1 1 22rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.source-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: 0.8rem;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.source-toggle input {
+  margin: 0;
+  accent-color: var(--green);
+}
+
+.source-toggle em {
+  margin-left: 0.15rem;
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.calendar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.export-btn {
+  padding: 0.6rem 0.9rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: 999rem;
+  color: #ffffff;
+  background: var(--red);
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.export-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .month-head {
   display: flex;
   align-items: baseline;
@@ -670,6 +731,9 @@ button {
 
 .cal-event {
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   padding: 0.12rem 0.22rem;
   border-radius: 0.4rem;
   color: var(--red-dark);
@@ -681,8 +745,22 @@ button {
   line-height: 1.2;
 }
 
+.cal-event.source-tasks {
+  color: #275f12;
+  background: #def6b9;
+}
+
+.cal-event.source-external {
+  color: #335d9d;
+  background: #dfeaff;
+}
+
 .cal-event .event-name {
   display: none;
+}
+
+.cal-event .event-code {
+  flex: 0 0 auto;
 }
 
 .state-card {

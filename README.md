@@ -1,17 +1,19 @@
 # 西湖大学β书院活动中心：数据维护说明
 
-该网站会自动读取 `data/activities` 和 `data/任务分工` 文件夹下的分组数据，向内部成员展示项目计划与分工。
+该网站会自动读取 `data/activities`、`data/calendar` 和 `data/任务分工` 文件夹下的分组数据，向内部成员展示项目计划与分工。
 网站包含三个页面：
 - Activities：按阶段查看活动，默认只显示待办；可切换到已完成或已归档。
-- Calendar：只展示待办和已完成中已填写具体日期（D）的活动。
+- Calendar：可勾选任务带入与外部导入，并导出 Apple Calendar/ICS。
 - Contribution：统计待办和已完成的总负责人次数和分工负责人次数，不含归档。
 
-这个网站会自动读取项目里的两个数据来源：
+这个网站会自动读取项目里的三个数据来源：
 
 - `data/activities/index.json`
 - `data/activities/todo.json`
 - `data/activities/done.json`
 - `data/activities/archive.json`
+- `data/calendar/index.json`
+- `data/calendar/external.json`
 - `data/任务分工` 文件夹下的分工文件，优先读取 `data/任务分工/index.json`
 
 页面代码已经拆成三个静态页面和两个共享静态文件：
@@ -92,7 +94,65 @@
 | `开始时间(H)` | 可空 | 例如 `19:00`，没有则写 `""` |
 | `地点` | 可空 | 活动地点，没有则写 `""` |
 
-## 三、`任务分工` 文件格式模板
+## 三、`data/calendar` 文件格式模板
+
+文件位置：`data/calendar/` 文件夹。
+
+`index.json` 用来描述日历来源。`kind` 为 `activity` 的来源会从活动阶段自动生成日历事件，`kind` 为 `file` 的来源会从 JSON 文件读取额外事件。
+
+```json
+{
+  "sources": [
+    {
+      "id": "tasks",
+      "label": "任务带入",
+      "kind": "activity",
+      "default": true,
+      "includeInCalendar": true,
+      "includeInContribution": true
+    },
+    {
+      "id": "external",
+      "label": "外部导入",
+      "kind": "file",
+      "file": "external.json",
+      "default": true,
+      "includeInCalendar": true,
+      "includeInContribution": false
+    }
+  ]
+}
+```
+
+外部导入日历文件是一个数组，每个事件可写这些字段：
+
+```json
+[
+  {
+    "标题": "示例事件",
+    "日期": "2026-09-01",
+    "开始时间": "14:00",
+    "结束时间": "15:00",
+    "全天": false,
+    "地点": "H4-121",
+    "备注": "可选备注"
+  }
+]
+```
+
+字段说明：
+
+| 字段 | 是否必填 | 说明 |
+| --- | --- | --- |
+| `标题` | 必填 | 日历事件标题 |
+| `日期` | 必填 | 支持 `2026-09-01`、`2026/9/1`、`2026年9月1日` |
+| `开始时间` | 可空 | 例如 `14:00` |
+| `结束时间` | 可空 | 例如 `15:00` |
+| `全天` | 可空 | 写 `true` 时导出为全天事件 |
+| `地点` | 可空 | 事件地点 |
+| `备注` | 可空 | 额外说明 |
+
+## 四、`任务分工` 文件格式模板
 
 文件位置：`data/任务分工` 文件夹。
 
@@ -138,7 +198,7 @@
 | `预计开始时间` | 可空 | 例如 `2026/9/1`，没有则写 `""` |
 | `预计结束时间` | 可空 | 例如 `2026/9/6`，没有则写 `""` |
 
-## 四、后续维护注意事项
+## 五、后续维护注意事项
 
 ### 1. 代号要保持一致
 
@@ -165,14 +225,14 @@
 ### 3. 页面读取逻辑
 
 - Activities：按阶段显示单独分组，不把待办、已完成、已归档混在一屏。
-- Calendar：只显示 `includeInCalendar` 为 `true` 的阶段中，且 `预计日期(D)` 不为空的活动。
+- Calendar：可切换任务带入与外部导入，导出时只包含当前勾选来源。
 - Contribution：统计 `includeInContribution` 为 `true` 的阶段中的总负责人次数（绿色）以及分工负责人次数（蓝色）。
 
 ### 4. 更新后要检查
 
 每次修改 JSON 后，请至少打开三个页面检查一次，确认活动数量、日历日期、分工明细和 Contribution 柱状图都符合预期。
 
-## 五、长期维护建议
+## 六、长期维护建议
 
 1. 新活动优先放入对应阶段文件，再同步补分工文件和清单。
 2. 阶段文件尽量一阶段一文件，文件内部统一用数组。

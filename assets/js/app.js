@@ -7,6 +7,8 @@
   const state = {
     activityGroups: [],
     tasks: [],
+    calendarSources: [],
+    calendarSourceIds: [],
     activityGroupId: "todo",
     filterMode: "status"
   };
@@ -180,7 +182,7 @@
     },
     calendar: {
       title: "Calendar",
-      subtitle: "仅展示待办和已完成中已填写预计日期（D）的活动。"
+      subtitle: "可勾选任务带入与外部导入，支持导出 Apple 日历。"
     },
     contribution: {
       title: "Contribution",
@@ -258,10 +260,133 @@
   const getGroupById = (groupId) =>
     state.activityGroups.find((group) => group.id === groupId) || state.activityGroups[0] || null;
 
-  const activeActivities = () =>
+  const calendarActivities = () =>
     state.activityGroups
-      .filter((group) => group.includeInCalendar || group.includeInContribution)
+      .filter((group) => group.includeInCalendar)
       .flatMap((group) => group.activities);
+
+  const contributionActivities = () =>
+    state.activityGroups
+      .filter((group) => group.includeInContribution)
+      .flatMap((group) => group.activities);
+
+  const pad2 = (value) => String(value).padStart(2, "0");
+
+  const addDays = (year, month, day, delta) => {
+    const date = new Date(year, month - 1, day);
+    date.setDate(date.getDate() + delta);
+    return {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate()
+    };
+  };
+
+  const parseClock = (value) => {
+    const match = clean(value).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) {
+      return null;
+    }
+    return {
+      hour: Number(match[1]),
+      minute: Number(match[2]),
+      second: Number(match[3] || 0)
+    };
+  };
+
+  const parseFlexibleDate = (value) => {
+    const text = clean(value);
+    if (!text) {
+      return null;
+    }
+
+    const full = text.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+    if (full) {
+      return {
+        year: Number(full[1]),
+        month: Number(full[2]),
+        day: Number(full[3])
+      };
+    }
+
+    const cn = text.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日?$/);
+    if (cn) {
+      return {
+        year: Number(cn[1]),
+        month: Number(cn[2]),
+        day: Number(cn[3])
+      };
+    }
+
+    const short = text.match(/^(\d{1,2})[./-](\d{1,2})$/);
+    if (short) {
+      return {
+        year: new Date().getFullYear(),
+        month: Number(short[1]),
+        day: Number(short[2])
+      };
+    }
+
+    const cnShort = text.match(/^(\d{1,2})月(\d{1,2})日?$/);
+    if (cnShort) {
+      return {
+        year: new Date().getFullYear(),
+        month: Number(cnShort[1]),
+        day: Number(cnShort[2])
+      };
+    }
+
+    return null;
+  };
+
+  const formatDateParts = ({ year, month, day }) =>
+    `${String(year).padStart(4, "0")}${pad2(month)}${pad2(day)}`;
+
+  const formatDateTimeParts = (date, clock) =>
+    `${formatDateParts(date)}T${pad2(clock.hour)}${pad2(clock.minute)}${pad2(clock.second || 0)}`;
+
+  const utcStamp = () => {
+    const now = new Date();
+    return [
+      now.getUTCFullYear(),
+      pad2(now.getUTCMonth() + 1),
+      pad2(now.getUTCDate())
+    ].join("") + `T${pad2(now.getUTCHours())}${pad2(now.getUTCMinutes())}${pad2(now.getUTCSeconds())}Z`;
+  };
+
+  const escapeICS = (value) =>
+    String(value ?? "")
+      .replace(/\\/g, "\\\\")
+      .replace(/\r?\n/g, "\\n")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,");
+
+  const foldICSLines = (lines) =>
+    lines.flatMap((line) => {
+      if (line.length <= 75) {
+        return [line];
+      }
+      const chunks = [];
+      let remaining = line;
+      while (remaining.length > 75) {
+        chunks.push(remaining.slice(0, 75));
+        remaining = ` ${remaining.slice(75)}`;
+      }
+      chunks.push(remaining);
+      return chunks;
+    }).join("\r\n");
+
+  const downloadTextFile = (filename, text, mimeType) => {
+    const blob = new Blob([text], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   const activityCard = (activity) => {
     const code = clean(activity["代号"]) || "—";
@@ -391,43 +516,346 @@
     `;
   };
 
-  const datedActivities = () =>
-    sortActivities(
-      activeActivities().filter((activity) =>
-        clean(activity["预计月份(Y)"]) && clean(activity["预计日期(D)"])
-      )
+  const buildTaskCalendarEvent = (activity, source) => {
+    const date = {
+      year: new Date().getFullYear(),
+      month: toNumber(activity["预计月份(Y)"]),
+      day: toNumber(activity["预计日期(D)"])
+    };
+
+    if (!date.month || !date.day) {
+      return null;
+    }
+
+    const clock = parseClock(activity["开始时间(H)"]);
+    const code = clean(activity["代号"]) || "—";
+    const title = clean(activity["活动名称"]) || "未命名活动";
+    const location = clean(activity["地点"]);
+    const detail = clean(activity["详情"]);
+    const status = clean(activity["状态"]);
+    const start = clock ? formatDateTimeParts(date, clock) : formatDateParts(date);
+    const end = clock
+      ? null
+      : formatDateParts(addDays(date.year, date.month, date.day, 1));
+
+    return {
+      id: `${source.id}:${code}:${date.year}-${pad2(date.month)}-${pad2(date.day)}`,
+      sourceId: source.id,
+      sourceLabel: source.label,
+      sourceKind: source.kind,
+      title,
+      code,
+      year: date.year,
+      month: date.month,
+      day: date.day,
+      allDay: !clock,
+      start,
+      end,
+      location,
+      detail,
+      status,
+      summary: `${code} · ${title}`,
+      sortTime: clock ? ((clock.hour * 60) + clock.minute) : 0
+    };
+  };
+
+  const normalizeExternalEvent = (record, source) => {
+    const date = parseFlexibleDate(
+      record.date || record.日期 || record["日期(D)"] || record["日期"] || record.when
     );
+    if (!date) {
+      return null;
+    }
+
+    const startClock = parseClock(record.startTime || record.开始时间 || record["开始时间(H)"]);
+    const endClock = parseClock(record.endTime || record.结束时间 || record["结束时间(H)"]);
+    const title = clean(record.title || record.标题 || record.name || record.名称) || "未命名事件";
+    const location = clean(record.location || record.地点);
+    const notes = clean(record.notes || record.备注 || record.detail || record.说明);
+    const allDayValue = record.allDay ?? record.全天;
+    const allDay = typeof allDayValue === "boolean" ? allDayValue : !startClock;
+    const idSeed = clean(record.id || record.代号 || title);
+    const startClockValue = startClock || { hour: 0, minute: 0, second: 0 };
+    const startDateTime = new Date(
+      date.year,
+      date.month - 1,
+      date.day,
+      startClockValue.hour,
+      startClockValue.minute,
+      startClockValue.second
+    );
+    const endDateTime = new Date(startDateTime.getTime());
+    if (!endClock) {
+      endDateTime.setHours(endDateTime.getHours() + 1);
+    }
+    const start = allDay
+      ? formatDateParts(date)
+      : formatDateTimeParts(date, startClockValue);
+    const end = allDay
+      ? formatDateParts(addDays(date.year, date.month, date.day, 1))
+      : endClock
+        ? formatDateTimeParts(date, endClock)
+        : formatDateTimeParts(
+            {
+              year: endDateTime.getFullYear(),
+              month: endDateTime.getMonth() + 1,
+              day: endDateTime.getDate()
+            },
+            {
+              hour: endDateTime.getHours(),
+              minute: endDateTime.getMinutes(),
+              second: endDateTime.getSeconds()
+            }
+          );
+
+    return {
+      id: `${source.id}:${idSeed}:${date.year}-${pad2(date.month)}-${pad2(date.day)}`,
+      sourceId: source.id,
+      sourceLabel: source.label,
+      sourceKind: source.kind,
+      title,
+      year: date.year,
+      month: date.month,
+      day: date.day,
+      allDay,
+      start,
+      end,
+      location,
+      detail: notes,
+      summary: title,
+      sortTime: allDay ? 0 : ((startClock ? startClock.hour : 0) * 60) + (startClock ? startClock.minute : 0)
+    };
+  };
+
+  const loadCalendarSourceManifest = async () => {
+    const fallback = [
+      {
+        id: "tasks",
+        label: "任务带入",
+        kind: "activity",
+        default: true,
+        includeInCalendar: true,
+        includeInContribution: true
+      },
+      {
+        id: "external",
+        label: "外部导入",
+        kind: "file",
+        file: "external.json",
+        default: true,
+        includeInCalendar: true,
+        includeInContribution: false
+      }
+    ];
+
+    try {
+      const manifest = await fetchJSON("./data/calendar/index.json");
+      if (Array.isArray(manifest)) {
+        return manifest;
+      }
+      if (manifest && Array.isArray(manifest.sources)) {
+        return manifest.sources;
+      }
+    } catch (error) {
+      // 使用默认来源。
+    }
+
+    return fallback;
+  };
+
+  const loadExternalCalendarEvents = async (source) => {
+    const files = [];
+    if (Array.isArray(source.files)) {
+      files.push(...source.files);
+    }
+    if (source.file) {
+      files.push(source.file);
+    }
+    if (!files.length) {
+      files.push("external.json");
+    }
+
+    const items = [];
+    for (const file of files) {
+      try {
+        const path = file.startsWith("./")
+          ? file
+          : `./data/calendar/${file}`;
+        const data = await fetchJSON(path);
+        items.push(...normalizeArray(data).filter(hasContent));
+      } catch (error) {
+        // 外部日历文件缺失时跳过，避免影响其他来源。
+      }
+    }
+
+    return items.map((record) => normalizeExternalEvent(record, source)).filter(Boolean);
+  };
+
+  const loadCalendarSources = async () => {
+    const sourceConfigs = await loadCalendarSourceManifest();
+    return Promise.all(sourceConfigs.map(async (source) => {
+      const normalized = {
+        id: clean(source.id) || clean(source.label) || "未命名",
+        label: clean(source.label) || clean(source.id) || "未命名",
+        kind: clean(source.kind) || "file",
+        default: source.default === true,
+        includeInCalendar: source.includeInCalendar !== false,
+        includeInContribution: source.includeInContribution !== false,
+        color: clean(source.color) || "",
+        file: clean(source.file) || "",
+        files: Array.isArray(source.files) ? source.files.map(String).filter(Boolean) : []
+      };
+
+      if (normalized.kind === "activity") {
+        return {
+          ...normalized,
+          events: calendarActivities()
+            .map((activity) => buildTaskCalendarEvent(activity, normalized))
+            .filter(Boolean)
+        };
+      }
+
+      return {
+        ...normalized,
+        events: await loadExternalCalendarEvents(normalized)
+      };
+    }));
+  };
+
+  const selectedCalendarSources = () =>
+    state.calendarSources.filter((source) => state.calendarSourceIds.includes(source.id));
+
+  const selectedCalendarEvents = () =>
+    selectedCalendarSources()
+      .filter((source) => source.includeInCalendar !== false)
+      .flatMap((source) => source.events);
+
+  const eventSortValue = (event) =>
+    (((event.month || 0) * 100) + (event.day || 0)) * 1000 + (event.sortTime || 0);
+
+  const buildICS = (events) => {
+    const lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//BETA-SDC//Activity List//CN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH"
+    ];
+
+    for (const event of events) {
+      const uid = `${event.id || event.sourceId}-${event.year}-${pad2(event.month)}-${pad2(event.day)}@beta-sdc`;
+      const summary = escapeICS(event.summary || event.title || "未命名事件");
+      const descriptionParts = [
+        event.sourceLabel ? `来源：${event.sourceLabel}` : "",
+        event.code ? `代号：${event.code}` : "",
+        event.status ? `状态：${event.status}` : "",
+        event.detail ? `备注：${event.detail}` : ""
+      ].filter(Boolean);
+      const description = escapeICS(descriptionParts.join("\n"));
+      const location = event.location ? escapeICS(event.location) : "";
+
+      lines.push("BEGIN:VEVENT");
+      lines.push(`UID:${escapeICS(uid)}`);
+      lines.push(`DTSTAMP:${utcStamp()}`);
+      if (event.allDay) {
+        lines.push(`DTSTART;VALUE=DATE:${event.start}`);
+        lines.push(`DTEND;VALUE=DATE:${event.end}`);
+      } else {
+        lines.push(`DTSTART:${event.start}`);
+        lines.push(`DTEND:${event.end}`);
+      }
+      lines.push(`SUMMARY:${summary}`);
+      if (description) {
+        lines.push(`DESCRIPTION:${description}`);
+      }
+      if (location) {
+        lines.push(`LOCATION:${location}`);
+      }
+      lines.push(`CATEGORIES:${escapeICS(event.sourceLabel || "活动")}`);
+      lines.push("END:VEVENT");
+    }
+
+    lines.push("END:VCALENDAR");
+    return foldICSLines(lines);
+  };
+
+  const exportSelectedCalendar = () => {
+    const events = selectedCalendarEvents().sort((a, b) => eventSortValue(a) - eventSortValue(b));
+    if (!events.length) {
+      return;
+    }
+    downloadTextFile("beta-activity-calendar.ics", buildICS(events), "text/calendar;charset=utf-8");
+  };
 
   const renderCalendar = () => {
-    const dated = datedActivities();
-    if (!dated.length) {
-      return emptyState("当前没有填写预计日期（D）的活动。");
+    const sources = selectedCalendarSources();
+    if (!sources.length) {
+      return `
+        <div class="toolbar calendar-toolbar">
+          <div class="calendar-sources">
+            ${state.calendarSources.map((source) => `
+              <label class="source-toggle">
+                <input type="checkbox" data-source="${escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
+                <span>${escapeHTML(source.label)}</span>
+                <em>${source.events.length}</em>
+              </label>
+            `).join("")}
+          </div>
+          <div class="calendar-actions">
+            <button class="export-btn" id="exportCalendarBtn" type="button" disabled>⤓ 导出 Apple 日历</button>
+          </div>
+          <span class="count-pill">共 0 个事件</span>
+        </div>
+        ${emptyState("请至少勾选一个日历来源。")}
+      `;
+    }
+
+    const events = selectedCalendarEvents().sort((a, b) => eventSortValue(a) - eventSortValue(b));
+    if (!events.length) {
+      return `
+        <div class="toolbar calendar-toolbar">
+          <div class="calendar-sources">
+            ${state.calendarSources.map((source) => `
+              <label class="source-toggle">
+                <input type="checkbox" data-source="${escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
+                <span>${escapeHTML(source.label)}</span>
+                <em>${source.events.length}</em>
+              </label>
+            `).join("")}
+          </div>
+          <div class="calendar-actions">
+            <button class="export-btn" id="exportCalendarBtn" type="button" disabled>⤓ 导出 Apple 日历</button>
+          </div>
+          <span class="count-pill">共 0 个事件</span>
+        </div>
+        ${emptyState("当前勾选的日历来源没有可展示的事件。")}
+      `;
     }
 
     const months = new Map();
-    for (const activity of dated) {
-      const month = toNumber(activity["预计月份(Y)"]);
+    for (const event of events) {
+      const month = event.month;
       if (!months.has(month)) {
         months.set(month, []);
       }
-      months.get(month).push(activity);
+      months.get(month).push(event);
     }
 
     const monthCards = [...months.entries()]
       .sort((a, b) => a[0] - b[0])
-      .map(([month, activities]) => {
+      .map(([month, monthEvents]) => {
         const year = new Date().getFullYear();
         const daysInMonth = new Date(year, month, 0).getDate();
         const firstWeekday = new Date(year, month - 1, 1).getDay();
         const offset = (firstWeekday + 6) % 7;
         const byDay = new Map();
 
-        for (const activity of activities) {
-          const day = toNumber(activity["预计日期(D)"]);
+        for (const event of monthEvents) {
+          const day = event.day;
           if (!byDay.has(day)) {
             byDay.set(day, []);
           }
-          byDay.get(day).push(activity);
+          byDay.get(day).push(event);
         }
 
         const cells = [];
@@ -436,14 +864,14 @@
         }
 
         for (let day = 1; day <= daysInMonth; day += 1) {
-          const events = byDay.get(day) || [];
+          const dayEvents = byDay.get(day) || [];
           cells.push(`
             <div class="calendar-day">
               <span class="day-number">${day}</span>
-              ${events.map((event) => `
-                <div class="cal-event" title="${escapeHTML(event["活动名称"] || "")}">
-                  <span class="event-code">${escapeHTML(clean(event["代号"]) || "—")}</span>
-                  <span class="event-name"> · ${escapeHTML(clean(event["活动名称"]))}</span>
+              ${dayEvents.map((event) => `
+                <div class="cal-event source-${escapeHTML(event.sourceId)}" title="${escapeHTML(event.title || "")}">
+                  <span class="event-code">${escapeHTML(event.code || "—")}</span>
+                  <span class="event-name"> · ${escapeHTML(event.title || "")}</span>
                 </div>
               `).join("")}
             </div>
@@ -454,7 +882,7 @@
           <section class="month-card">
             <div class="month-head">
               <h2>${month}月</h2>
-              <span>${activities.length} 项活动</span>
+              <span>${monthEvents.length} 项活动</span>
             </div>
             <div class="calendar-grid">
               ${["一", "二", "三", "四", "五", "六", "日"].map((day) => `<div class="calendar-weekday">${day}</div>`).join("")}
@@ -464,7 +892,24 @@
         `;
       });
 
-    return monthCards.join("");
+    return `
+      <div class="toolbar calendar-toolbar">
+        <div class="calendar-sources">
+          ${state.calendarSources.map((source) => `
+            <label class="source-toggle">
+              <input type="checkbox" data-source="${escapeHTML(source.id)}" ${state.calendarSourceIds.includes(source.id) ? "checked" : ""}>
+              <span>${escapeHTML(source.label)}</span>
+              <em>${source.events.length}</em>
+            </label>
+          `).join("")}
+        </div>
+        <div class="calendar-actions">
+          <button class="export-btn" id="exportCalendarBtn" type="button">⤓ 导出 Apple 日历</button>
+        </div>
+        <span class="count-pill">共 ${events.length} 个事件</span>
+      </div>
+      ${monthCards.join("")}
+    `;
   };
 
   const buildContribution = () => {
@@ -476,7 +921,7 @@
       return members.get(name);
     };
 
-    for (const activity of activeActivities()) {
+    for (const activity of contributionActivities()) {
       const owner = clean(activity["总负责人"]);
       if (owner) {
         ensure(owner).total += 1;
@@ -626,6 +1071,13 @@
       state.activityGroups[0]?.id ||
       "";
     state.tasks = tasks;
+    state.calendarSources = await loadCalendarSources();
+    state.calendarSourceIds = state.calendarSources
+      .filter((source) => source.default)
+      .map((source) => source.id);
+    if (!state.calendarSourceIds.length) {
+      state.calendarSourceIds = state.calendarSources.map((source) => source.id);
+    }
 
     if (!state.activityGroups.length) {
       throw new Error("data/activities/index.json 中没有可用的活动数据。");
@@ -664,6 +1116,35 @@
     const groupButton = event.target.closest("[data-group]");
     if (groupButton) {
       state.activityGroupId = groupButton.dataset.group;
+      render();
+    }
+
+    const exportButton = event.target.closest("#exportCalendarBtn");
+    if (exportButton) {
+      exportSelectedCalendar();
+    }
+  });
+
+  document.addEventListener("change", (event) => {
+    const sourceToggle = event.target.closest("[data-source]");
+    if (!sourceToggle) {
+      return;
+    }
+
+    const sourceId = sourceToggle.dataset.source;
+    if (!sourceId) {
+      return;
+    }
+
+    if (sourceToggle.checked) {
+      if (!state.calendarSourceIds.includes(sourceId)) {
+        state.calendarSourceIds = [...state.calendarSourceIds, sourceId];
+      }
+    } else {
+      state.calendarSourceIds = state.calendarSourceIds.filter((id) => id !== sourceId);
+    }
+
+    if (currentPage() === "calendar") {
       render();
     }
   });
