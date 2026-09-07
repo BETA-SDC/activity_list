@@ -5,6 +5,16 @@
 
   const trimText = (value) => (typeof value === "string" ? value.trim() : "");
 
+  const localTimestampText = () => {
+    const now = new Date();
+    const pad = (value) => String(value).padStart(2, "0");
+    return [
+      now.getFullYear(),
+      pad(now.getMonth() + 1),
+      pad(now.getDate())
+    ].join("-") + ` ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  };
+
   const normalizeRepoPath = (value) =>
     String(value ?? "")
       .replace(/^\.\//, "")
@@ -60,13 +70,20 @@
       throw new Error("本地服务未启动，请先运行 `npm start` 再保存。");
     }
 
+    const activity = {
+      ...draft
+    };
+    if (!trimText(activity["建立规划时间"])) {
+      activity["建立规划时间"] = localTimestampText();
+    }
+
     const response = await fetch(`${AL.LOCAL_SERVICE_ORIGIN}/api/activities/save`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        activity: draft,
+        activity,
         originalCode: trimText(originalCode)
       })
     });

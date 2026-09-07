@@ -49,6 +49,7 @@
     "代号": "",
     "活动名称": "",
     "状态": "待分工",
+    "建立规划时间": "",
     "详情": "",
     "活动类型": "",
     "总负责人": "",
@@ -205,6 +206,7 @@
     const code = AL.clean(activity["代号"]) || "—";
     const name = AL.clean(activity["活动名称"]) || "未命名活动";
     const status = AL.clean(activity["状态"]) || "未分类";
+    const planningTime = AL.clean(activity["建立规划时间"]);
     const type = AL.clean(activity["活动类型"]) || "未分类";
     const owner = AL.clean(activity["总负责人"]) || "待定";
     const location = AL.clean(activity["地点"]);
@@ -251,6 +253,12 @@
             <dt>总负责人</dt>
             <dd>${AL.escapeHTML(owner)}</dd>
           </div>
+          ${planningTime ? `
+            <div>
+              <dt>建立规划时间</dt>
+              <dd>${AL.escapeHTML(planningTime)}</dd>
+            </div>
+          ` : ""}
           <div>
             <dt>预计时间</dt>
             <dd>${AL.escapeHTML(AL.activityTimeText(activity))}</dd>
@@ -267,8 +275,11 @@
   };
 
   AL.groupActivities = (activities, mode) => {
+    const sortedActivities = mode === "archive"
+      ? AL.sortArchivedActivities(activities)
+      : AL.sortActivities(activities);
     const groups = new Map();
-    for (const activity of AL.sortActivities(activities)) {
+    for (const activity of sortedActivities) {
       const key = mode === "type"
         ? AL.clean(activity["活动类型"]) || "未分类"
         : AL.clean(activity["状态"]) || "未分类";
@@ -279,6 +290,25 @@
     }
     return groups;
   };
+
+  AL.sortArchivedActivities = (activities) =>
+    [...activities].sort((a, b) => {
+      const aStamp = Date.parse(AL.clean(a["建立规划时间"]).replace(" ", "T")) || 0;
+      const bStamp = Date.parse(AL.clean(b["建立规划时间"]).replace(" ", "T")) || 0;
+      if (aStamp !== bStamp) {
+        return aStamp - bStamp;
+      }
+      const aNum = AL.toNumber(a["代号"]);
+      const bNum = AL.toNumber(b["代号"]);
+      if (aNum !== bNum) {
+        return aNum - bNum;
+      }
+      return String(a["活动名称"] || "").localeCompare(
+        String(b["活动名称"] || ""),
+        "zh-CN",
+        { numeric: true }
+      );
+    });
 
   AL.renderActivities = (state) => {
     const groups = AL.visibleActivityGroups(state);

@@ -28,6 +28,16 @@ const CORS_HEADERS = {
 
 const trimText = (value) => (typeof value === "string" ? value.trim() : "");
 
+const localTimestampText = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    now.getFullYear(),
+    pad(now.getMonth() + 1),
+    pad(now.getDate())
+  ].join("-") + ` ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+};
+
 const normalizeRepoPath = (value) =>
   String(value ?? "")
     .replace(/^\.\//, "")
@@ -137,6 +147,21 @@ const sortActivities = (activities) =>
     return String(a?.["活动名称"] || "").localeCompare(String(b?.["活动名称"] || ""), "zh-CN", { numeric: true });
   });
 
+const sortArchiveActivities = (activities) =>
+  [...activities].sort((a, b) => {
+    const aStamp = Date.parse(String(a?.["建立规划时间"] || "").replace(" ", "T")) || 0;
+    const bStamp = Date.parse(String(b?.["建立规划时间"] || "").replace(" ", "T")) || 0;
+    if (aStamp !== bStamp) {
+      return aStamp - bStamp;
+    }
+    const aCode = Number(String(a?.["代号"] || "").match(/\d+/)?.[0] || 0);
+    const bCode = Number(String(b?.["代号"] || "").match(/\d+/)?.[0] || 0);
+    if (aCode !== bCode) {
+      return aCode - bCode;
+    }
+    return String(a?.["活动名称"] || "").localeCompare(String(b?.["活动名称"] || ""), "zh-CN", { numeric: true });
+  });
+
 const findActivity = (groups, code) => {
   const targetCode = trimText(code);
   if (!targetCode) {
@@ -195,7 +220,9 @@ const pickTargetGroup = (groups, status, fallbackGroup = null) => {
 const writeChangedGroups = async (groups, changedFiles) => {
   const uniqueFiles = [...new Set(changedFiles.filter(Boolean))];
   for (const file of uniqueFiles) {
-    file.items = sortActivities(file.items);
+    file.items = path.basename(file.path) === "archive.json"
+      ? sortArchiveActivities(file.items)
+      : sortActivities(file.items);
     await writeJSON(file.path, file.items);
   }
 };
@@ -222,7 +249,8 @@ const saveActivity = async (payload) => {
   const targetFile = targetGroup.files[0];
   const normalized = {
     ...draft,
-    "代号": code
+    "代号": code,
+    "建立规划时间": trimText(draft["建立规划时间"]) || trimText(existing?.item?.["建立规划时间"]) || localTimestampText()
   };
 
   const changedFiles = removeActivityByCode(groups, originalCode || code);
