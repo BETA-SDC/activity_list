@@ -1,0 +1,25 @@
+{
+  "sources": [
+    {
+      "id": "tasks",
+      "label": "任务带入",
+      "kind": "activity",
+      "color": "rgba(226, 146, 52, 0.18)",
+      "colorStrong": "rgba(226, 146, 52, 0.9)",
+      "default": true,
+      "includeInCalendar": true,
+      "includeInContribution": true
+    },
+    {
+      "id": "external",
+      "label": "外部导入",
+      "kind": "file",
+      "file": "external.ics",
+      "color": "rgba(24, 69, 136, 0.18)",
+      "colorStrong": "rgba(24, 69, 136, 0.9)",
+      "default": true,
+      "includeInCalendar": true,
+      "includeInContribution": false
+    }
+  ]
+}
