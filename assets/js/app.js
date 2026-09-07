@@ -5,8 +5,9 @@
   const MAX_TASK_FILES = 200;
 
   const state = {
-    activities: [],
+    activityGroups: [],
     tasks: [],
+    activityGroupId: "todo",
     filterMode: "status"
   };
 
@@ -45,9 +46,9 @@
     return response.json();
   }
 
-  async function loadManifestPaths() {
+  async function loadManifestPaths(path) {
     try {
-      const manifest = await fetchJSON("./data/任务分工/index.json");
+      const manifest = await fetchJSON(path);
       if (Array.isArray(manifest)) {
         return manifest.map(String).filter(Boolean);
       }
@@ -60,15 +61,15 @@
     return null;
   }
 
-  async function loadTaskFiles() {
-    const manifestPaths = await loadManifestPaths();
+  const loadGroupedFiles = async (basePath, manifestPath, fallbackPattern) => {
+    const manifestPaths = await loadManifestPaths(manifestPath);
 
     if (manifestPaths && manifestPaths.length) {
       const settled = await Promise.allSettled(
         manifestPaths.map(async (name) => {
           const path = name.startsWith("./")
             ? name
-            : `./data/任务分工/${name}`;
+            : `${basePath}${name}`;
           const data = await fetchJSON(path);
           return normalizeArray(data).filter(hasContent);
         })
@@ -79,14 +80,14 @@
         .flatMap((result) => result.value);
     }
 
-    const tasks = [];
+    const items = [];
     let consecutiveMisses = 0;
 
     for (let i = 1; i <= MAX_TASK_FILES; i += 1) {
-      const path = `./data/任务分工/任务分工-P${i}.json`;
+      const path = fallbackPattern(i);
       try {
         const data = await fetchJSON(path);
-        tasks.push(...normalizeArray(data).filter(hasContent));
+        items.push(...normalizeArray(data).filter(hasContent));
         consecutiveMisses = 0;
       } catch (error) {
         consecutiveMisses += 1;
@@ -96,7 +97,49 @@
       }
     }
 
-    return tasks;
+    return items;
+  };
+
+  async function loadTaskFiles() {
+    return loadGroupedFiles(
+      "./data/任务分工/",
+      "./data/任务分工/index.json",
+      (i) => `./data/任务分工/任务分工-P${i}.json`
+    );
+  }
+
+  async function loadActivityGroups() {
+    const manifestPath = "./data/activities/index.json";
+    const manifest = await fetchJSON(manifestPath);
+    const groups = Array.isArray(manifest?.groups) ? manifest.groups : [];
+
+    if (!groups.length) {
+      throw new Error("data/activities/index.json 中没有可用的活动分组。");
+    }
+
+    const loadedGroups = await Promise.all(groups.map(async (group) => {
+      const files = Array.isArray(group.files) ? group.files : [];
+      const activities = [];
+
+      for (const file of files) {
+        const path = file.startsWith("./")
+          ? file
+          : `./data/activities/${file}`;
+        const data = await fetchJSON(path);
+        activities.push(...normalizeArray(data).filter(hasContent));
+      }
+
+      return {
+        id: clean(group.id) || clean(group.label) || "未命名",
+        label: clean(group.label) || clean(group.id) || "未命名",
+        includeInCalendar: group.includeInCalendar !== false,
+        includeInContribution: group.includeInContribution !== false,
+        default: group.default === true,
+        activities
+      };
+    }));
+
+    return loadedGroups;
   }
 
   const sortActivities = (activities) =>
@@ -133,15 +176,15 @@
   const pageMeta = {
     activities: {
       title: "Activities",
-      subtitle: "查看全部活动，可按状态或活动类型分列。"
+      subtitle: "按阶段查看活动，默认只显示待办。"
     },
     calendar: {
       title: "Calendar",
-      subtitle: "仅展示已填写预计日期（D）的活动。"
+      subtitle: "仅展示待办和已完成中已填写预计日期（D）的活动。"
     },
     contribution: {
       title: "Contribution",
-      subtitle: "统计每位成员的总负责人次数与分工负责人次数。"
+      subtitle: "统计待办和已完成的成员次数，不含归档。"
     }
   };
 
@@ -211,6 +254,14 @@
       </div>
     `;
   };
+
+  const getGroupById = (groupId) =>
+    state.activityGroups.find((group) => group.id === groupId) || state.activityGroups[0] || null;
+
+  const activeActivities = () =>
+    state.activityGroups
+      .filter((group) => group.includeInCalendar || group.includeInContribution)
+      .flatMap((group) => group.activities);
 
   const activityCard = (activity) => {
     const code = clean(activity["代号"]) || "—";
@@ -289,12 +340,31 @@
   };
 
   const renderActivities = () => {
-    if (!state.activities.length) {
-      return emptyState("请在 data/ 目录放置 活动表.json 后刷新。");
+    const groups = state.activityGroups;
+    if (!groups.length) {
+      return emptyState("请在 data/activities/ 目录放置活动分组后刷新。");
     }
 
-    const groups = groupActivities(state.activities, state.filterMode);
-    const groupsHTML = [...groups.entries()].map(([name, activities]) => `
+    const selectedGroup = getGroupById(state.activityGroupId);
+    const visibleActivities = selectedGroup ? selectedGroup.activities : [];
+    if (!visibleActivities.length) {
+      return `
+        <div class="toolbar">
+          <div class="segmented" aria-label="活动阶段">
+            ${groups.map((group) => `
+              <button type="button" data-group="${escapeHTML(group.id)}" class="${state.activityGroupId === group.id ? "active" : ""}">${escapeHTML(group.label)}</button>
+            `).join("")}
+          </div>
+          <div class="segmented" aria-label="分列方式">
+            <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
+            <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
+          </div>
+          <span class="count-pill">${escapeHTML(selectedGroup ? selectedGroup.label : "活动")} · 0 项</span>
+        </div>
+        ${emptyState("当前阶段暂时没有活动。")}
+      `;
+    }
+    const groupsHTML = [...groupActivities(visibleActivities, state.filterMode).entries()].map(([name, activities]) => `
       <section class="group">
         <h2>${escapeHTML(name)}</h2>
         <span class="group-count">${activities.length}</span>
@@ -306,11 +376,16 @@
 
     return `
       <div class="toolbar">
+        <div class="segmented" aria-label="活动阶段">
+          ${groups.map((group) => `
+            <button type="button" data-group="${escapeHTML(group.id)}" class="${state.activityGroupId === group.id ? "active" : ""}">${escapeHTML(group.label)}</button>
+          `).join("")}
+        </div>
         <div class="segmented" aria-label="分列方式">
           <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
           <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
         </div>
-        <span class="count-pill">共 ${state.activities.length} 项活动</span>
+        <span class="count-pill">${escapeHTML(selectedGroup ? selectedGroup.label : "活动")} · 共 ${visibleActivities.length} 项</span>
       </div>
       ${groupsHTML}
     `;
@@ -318,7 +393,7 @@
 
   const datedActivities = () =>
     sortActivities(
-      state.activities.filter((activity) =>
+      activeActivities().filter((activity) =>
         clean(activity["预计月份(Y)"]) && clean(activity["预计日期(D)"])
       )
     );
@@ -401,7 +476,7 @@
       return members.get(name);
     };
 
-    for (const activity of state.activities) {
+    for (const activity of activeActivities()) {
       const owner = clean(activity["总负责人"]);
       if (owner) {
         ensure(owner).total += 1;
@@ -536,16 +611,24 @@
   };
 
   const loadData = async () => {
-    const [activitiesData, tasks] = await Promise.all([
-      fetchJSON("./data/活动表.json"),
+    const [activityGroups, tasks] = await Promise.all([
+      loadActivityGroups(),
       loadTaskFiles()
     ]);
 
-    state.activities = normalizeArray(activitiesData).filter(hasContent);
+    state.activityGroups = activityGroups.map((group) => ({
+      ...group,
+      activities: sortActivities(group.activities)
+    }));
+    state.activityGroupId =
+      state.activityGroups.find((group) => group.default)?.id ||
+      state.activityGroups.find((group) => group.id === "todo")?.id ||
+      state.activityGroups[0]?.id ||
+      "";
     state.tasks = tasks;
 
-    if (!state.activities.length) {
-      throw new Error("data/活动表.json 中没有可用的活动数据。");
+    if (!state.activityGroups.length) {
+      throw new Error("data/activities/index.json 中没有可用的活动数据。");
     }
   };
 
@@ -575,6 +658,12 @@
     const modeButton = event.target.closest("[data-mode]");
     if (modeButton) {
       state.filterMode = modeButton.dataset.mode;
+      render();
+    }
+
+    const groupButton = event.target.closest("[data-group]");
+    if (groupButton) {
+      state.activityGroupId = groupButton.dataset.group;
       render();
     }
   });

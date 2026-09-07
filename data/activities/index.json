@@ -1,0 +1,32 @@
+{
+  "groups": [
+    {
+      "id": "todo",
+      "label": "待办",
+      "default": true,
+      "includeInCalendar": true,
+      "includeInContribution": true,
+      "files": [
+        "todo.json"
+      ]
+    },
+    {
+      "id": "done",
+      "label": "已完成",
+      "includeInCalendar": true,
+      "includeInContribution": true,
+      "files": [
+        "done.json"
+      ]
+    },
+    {
+      "id": "archive",
+      "label": "已归档",
+      "includeInCalendar": false,
+      "includeInContribution": false,
+      "files": [
+        "archive.json"
+      ]
+    }
+  ]
+}
