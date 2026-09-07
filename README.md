@@ -18,9 +18,9 @@
 
 页面代码已经拆成三个静态页面和两个共享静态文件：
 
-- `activities.html`
-- `calendar.html`
-- `contribution.html`
+- `pages/activities.html`
+- `pages/calendar.html`
+- `pages/contribution.html`
 - `index.html`（跳转入口）
 - `assets/css/styles.css`
 - `assets/js/app.js`
@@ -35,7 +35,7 @@
 4. 所有字段名必须和模板完全一致，包括括号、大小写和空格。
 5. 字段值没有内容时，请保留字段并填写空字符串 `""`，不要直接删掉字段。
 6. 新增字段不会被页面自动显示；如果确实需要新增字段，请先和网站维护人员确认。
-7. 修改文件后，回到页面点击右上角的“刷新数据”，或刷新浏览器。GitHub Pages 有时会缓存旧文件，建议使用 `Ctrl + F5` 强制刷新。
+7. 修改文件后，回到页面点击右上角的“刷新数据”，或刷新浏览器。页面 HTML 已设置为不缓存，但 GitHub Pages 和浏览器缓存仍可能短暂保留旧资源，建议使用 `Ctrl + F5` 强制刷新。
 
 推荐使用 VS Code、Sublime Text、在线 JSON 校验工具等编辑 JSON。不要直接用 Excel 另存为 JSON，容易产生编码或格式问题。
 

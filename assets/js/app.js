@@ -15,6 +15,39 @@
 
   const clean = (value) => (typeof value === "string" ? value.trim() : "");
 
+  const SITE_BASE = location.pathname.includes("/pages/") ? "../" : "./";
+
+  const stripLeadingDotSlash = (value) => String(value || "").replace(/^\.\//, "");
+
+  const isRemotePath = (value) => /^(?:[a-z]+:)?\/\//i.test(value) || value.startsWith("/");
+
+  const resolveSitePath = (value) => {
+    const path = stripLeadingDotSlash(clean(value));
+    if (!path) {
+      return path;
+    }
+    if (isRemotePath(path) || path.startsWith("../")) {
+      return path;
+    }
+    return `${SITE_BASE}${path}`;
+  };
+
+  const joinSitePath = (basePath, childPath) => {
+    const base = stripLeadingDotSlash(clean(basePath));
+    const child = stripLeadingDotSlash(clean(childPath));
+    if (!base) {
+      return child;
+    }
+    if (isRemotePath(child) || child.startsWith("../")) {
+      return child;
+    }
+    const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+    if (child.startsWith(normalizedBase)) {
+      return child;
+    }
+    return `${normalizedBase}${child}`;
+  };
+
   const toNumber = (value) => {
     const match = String(value || "").match(/\d+/);
     return match ? Number(match[0]) : 0;
@@ -40,7 +73,7 @@
   };
 
   async function fetchJSON(path) {
-    const url = `${path}?v=${Date.now()}`;
+    const url = `${resolveSitePath(path)}?v=${Date.now()}`;
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`无法读取 ${path}（HTTP ${response.status}）`);
@@ -69,9 +102,7 @@
     if (manifestPaths && manifestPaths.length) {
       const settled = await Promise.allSettled(
         manifestPaths.map(async (name) => {
-          const path = name.startsWith("./")
-            ? name
-            : `${basePath}${name}`;
+          const path = joinSitePath(basePath, name);
           const data = await fetchJSON(path);
           return normalizeArray(data).filter(hasContent);
         })
@@ -104,14 +135,14 @@
 
   async function loadTaskFiles() {
     return loadGroupedFiles(
-      "./data/任务分工/",
-      "./data/任务分工/index.json",
-      (i) => `./data/任务分工/任务分工-P${i}.json`
+      "data/任务分工/",
+      "data/任务分工/index.json",
+      (i) => `data/任务分工/任务分工-P${i}.json`
     );
   }
 
   async function loadActivityGroups() {
-    const manifestPath = "./data/activities/index.json";
+    const manifestPath = "data/activities/index.json";
     const manifest = await fetchJSON(manifestPath);
     const groups = Array.isArray(manifest?.groups) ? manifest.groups : [];
 
@@ -124,9 +155,7 @@
       const activities = [];
 
       for (const file of files) {
-        const path = file.startsWith("./")
-          ? file
-          : `./data/activities/${file}`;
+        const path = joinSitePath("data/activities/", file);
         const data = await fetchJSON(path);
         activities.push(...normalizeArray(data).filter(hasContent));
       }
@@ -649,7 +678,7 @@
     ];
 
     try {
-      const manifest = await fetchJSON("./data/calendar/index.json");
+      const manifest = await fetchJSON("data/calendar/index.json");
       if (Array.isArray(manifest)) {
         return manifest;
       }
@@ -678,9 +707,7 @@
     const items = [];
     for (const file of files) {
       try {
-        const path = file.startsWith("./")
-          ? file
-          : `./data/calendar/${file}`;
+        const path = joinSitePath("data/calendar/", file);
         const data = await fetchJSON(path);
         items.push(...normalizeArray(data).filter(hasContent));
       } catch (error) {
@@ -1048,7 +1075,7 @@
         <div>
           <h2>数据读取失败</h2>
           <p>${escapeHTML(error.message || "未知错误")}</p>
-          <p>请将网站部署到 GitHub Pages，或使用本地静态服务器打开。直接双击 index.html 时，浏览器通常会阻止读取同目录 JSON 文件。</p>
+          <p>请将网站部署到 GitHub Pages，或使用本地静态服务器打开。直接双击页面 HTML 时，浏览器通常会阻止读取同目录 JSON 文件。</p>
           <button class="retry-btn" id="retryBtn" type="button">重试</button>
         </div>
       </div>
