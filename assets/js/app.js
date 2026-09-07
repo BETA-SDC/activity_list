@@ -49,7 +49,7 @@
 
   async function loadManifestPaths() {
     try {
-      const manifest = await fetchJSON("./任务分工/index.json");
+      const manifest = await fetchJSON("./data/任务分工/index.json");
       if (Array.isArray(manifest)) {
         return manifest.map(String).filter(Boolean);
       }
@@ -70,7 +70,7 @@
         manifestPaths.map(async (name) => {
           const path = name.startsWith("./")
             ? name
-            : `./任务分工/${name}`;
+            : `./data/任务分工/${name}`;
           const data = await fetchJSON(path);
           return normalizeArray(data).filter(hasContent);
         })
@@ -85,7 +85,7 @@
     let consecutiveMisses = 0;
 
     for (let i = 1; i <= MAX_TASK_FILES; i += 1) {
-      const path = `./任务分工/任务分工-P${i}.json`;
+      const path = `./data/任务分工/任务分工-P${i}.json`;
       try {
         const data = await fetchJSON(path);
         tasks.push(...normalizeArray(data).filter(hasContent));
@@ -291,7 +291,7 @@
 
   const renderActivities = () => {
     if (!state.activities.length) {
-      return emptyState("请在根目录放置 活动表.json 后刷新。");
+      return emptyState("请在 data/ 目录放置 活动表.json 后刷新。");
     }
 
     const groups = groupActivities(state.activities, state.filterMode);
@@ -538,7 +538,7 @@
 
   const loadData = async () => {
     const [activitiesData, tasks] = await Promise.all([
-      fetchJSON("./活动表.json"),
+      fetchJSON("./data/活动表.json"),
       loadTaskFiles()
     ]);
 
@@ -546,7 +546,7 @@
     state.tasks = tasks;
 
     if (!state.activities.length) {
-      throw new Error("活动表.json 中没有可用的活动数据。");
+      throw new Error("data/活动表.json 中没有可用的活动数据。");
     }
   };
 
