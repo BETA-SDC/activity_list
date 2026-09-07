@@ -17,6 +17,34 @@
     `;
   };
 
+  AL.visibleActivityGroups = (state) =>
+    state.showArchived
+      ? state.activityGroups
+      : state.activityGroups.filter((group) => group.id !== "archive");
+
+  AL.allActivities = (state) =>
+    state.activityGroups.flatMap((group) => group.activities);
+
+  AL.visibleActivities = (state) =>
+    AL.visibleActivityGroups(state).flatMap((group) => group.activities);
+
+  AL.statusChoices = (state) => {
+    const preferred = ["待分工", "已分工"];
+    const choices = new Set();
+    for (const activity of AL.allActivities(state)) {
+      const status = AL.clean(activity["状态"]);
+      if (status && status !== "已归档") {
+        choices.add(status);
+      }
+    }
+    return [...preferred.filter((status) => choices.has(status)), ...[...choices].filter((status) => !preferred.includes(status))];
+  };
+
+  AL.activeStatusFilter = (state) => {
+    const choices = AL.statusChoices(state);
+    return choices.includes(state.statusFilter) ? state.statusFilter : (choices[0] || "待分工");
+  };
+
   AL.emptyState = (message) => `
     <div class="state-card">
       <div>
@@ -150,26 +178,44 @@
   };
 
   AL.renderActivities = (state) => {
-    const groups = state.activityGroups;
+    const groups = AL.visibleActivityGroups(state);
     if (!groups.length) {
       return AL.emptyState("请在 data/activities/ 目录放置活动分组后刷新。");
     }
 
-    const selectedGroup = AL.getGroupById(state, state.activityGroupId);
-    const visibleActivities = selectedGroup ? selectedGroup.activities : [];
+    const statusChoices = AL.statusChoices(state);
+    const activeStatusFilter = AL.activeStatusFilter(state);
+    const allVisibleActivities = AL.allActivities(state);
+    const archivedActivities = allVisibleActivities.filter((activity) => AL.clean(activity["状态"]) === "已归档");
+    const activeActivities = allVisibleActivities.filter((activity) => AL.clean(activity["状态"]) !== "已归档");
+    const filteredActivities = state.filterMode === "status" && activeStatusFilter
+      ? activeActivities.filter((activity) => AL.clean(activity["状态"]) === activeStatusFilter)
+      : activeActivities;
+    const visibleActivities = state.showArchived
+      ? [...filteredActivities, ...archivedActivities]
+      : filteredActivities;
+
     if (!visibleActivities.length) {
       return `
         <div class="toolbar">
-          <div class="segmented" aria-label="活动阶段">
-            ${groups.map((group) => `
-              <button type="button" data-group="${AL.escapeHTML(group.id)}" class="${state.activityGroupId === group.id ? "active" : ""}">${AL.escapeHTML(group.label)}</button>
-            `).join("")}
+          <div class="toolbar-row">
+            <div class="segmented" aria-label="分列方式">
+              <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
+              <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
+            </div>
+            <label class="archive-toggle">
+              <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
+              <span>展示已归档</span>
+            </label>
           </div>
-          <div class="segmented" aria-label="分列方式">
-            <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
-            <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
-          </div>
-          <span class="count-pill">${AL.escapeHTML(selectedGroup ? selectedGroup.label : "活动")} · 0 项</span>
+          ${state.filterMode === "status" ? `
+            <div class="segmented status-filter" aria-label="状态筛选">
+              ${statusChoices.map((status) => `
+                <button type="button" data-status="${AL.escapeHTML(status)}" class="${activeStatusFilter === status ? "active" : ""}">${AL.escapeHTML(status)}</button>
+              `).join("")}
+            </div>
+          ` : ""}
+          <span class="count-pill">共 0 项</span>
         </div>
         ${AL.emptyState("当前阶段暂时没有活动。")}
       `;
@@ -186,16 +232,24 @@
 
     return `
       <div class="toolbar">
-        <div class="segmented" aria-label="活动阶段">
-          ${groups.map((group) => `
-            <button type="button" data-group="${AL.escapeHTML(group.id)}" class="${state.activityGroupId === group.id ? "active" : ""}">${AL.escapeHTML(group.label)}</button>
-          `).join("")}
+        <div class="toolbar-row">
+          <div class="segmented" aria-label="分列方式">
+            <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
+            <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
+          </div>
+          <label class="archive-toggle">
+            <input type="checkbox" data-show-archived ${state.showArchived ? "checked" : ""}>
+            <span>展示已归档</span>
+          </label>
         </div>
-        <div class="segmented" aria-label="分列方式">
-          <button type="button" data-mode="status" class="${state.filterMode === "status" ? "active" : ""}">按状态分列</button>
-          <button type="button" data-mode="type" class="${state.filterMode === "type" ? "active" : ""}">按活动类型分列</button>
-        </div>
-        <span class="count-pill">${AL.escapeHTML(selectedGroup ? selectedGroup.label : "活动")} · 共 ${visibleActivities.length} 项</span>
+        ${state.filterMode === "status" ? `
+          <div class="segmented status-filter" aria-label="状态筛选">
+            ${statusChoices.map((status) => `
+              <button type="button" data-status="${AL.escapeHTML(status)}" class="${activeStatusFilter === status ? "active" : ""}">${AL.escapeHTML(status)}</button>
+            `).join("")}
+          </div>
+        ` : ""}
+        <span class="count-pill">共 ${visibleActivities.length} 项</span>
       </div>
       ${groupsHTML}
     `;

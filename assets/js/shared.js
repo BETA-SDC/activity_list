@@ -216,7 +216,7 @@
   AL.pageMeta = {
     activities: {
       title: "Activities",
-      subtitle: "按阶段查看活动，默认只显示待办。"
+      subtitle: "按状态分列或按活动类型分列，已归档可单独展示。"
     },
     calendar: {
       title: "Calendar",
@@ -224,7 +224,7 @@
     },
     contribution: {
       title: "Contribution",
-      subtitle: "统计待办和已完成的成员次数，不含归档。"
+      subtitle: "统计待分工和已分工的成员次数，不含归档。"
     }
   };
 

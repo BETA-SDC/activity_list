@@ -2,9 +2,9 @@
 
 该网站会自动读取 `data/activities`、`data/calendar` 和 `data/任务分工` 文件夹下的分组数据，向内部成员展示项目计划与分工。
 网站包含三个页面：
-- Activities：按阶段查看活动，默认只显示待办；可切换到已完成或已归档。
+- Activities：按状态分列或按活动类型分列，已归档可单独展示。
 - Calendar：可勾选任务带入与外部导入，并导出 Apple Calendar/ICS。
-- Contribution：统计待办和已完成的总负责人次数和分工负责人次数，不含归档。
+- Contribution：统计待分工和已分工的总负责人次数和分工负责人次数，不含归档。
 
 这个网站会自动读取项目里的三个数据来源：
 
@@ -46,14 +46,14 @@
 
 文件位置：`data/activities/`。
 
-`index.json` 用来描述每个阶段对应哪些文件。
+`index.json` 用来描述每个阶段对应哪些文件，展示名称建议直接写成状态名。
 
 ```json
 {
   "groups": [
     {
       "id": "todo",
-      "label": "待办",
+      "label": "待分工",
       "default": true,
       "includeInCalendar": true,
       "includeInContribution": true,
@@ -230,7 +230,7 @@ END:VCALENDAR
 
 ### 3. 页面读取逻辑
 
-- Activities：按阶段显示单独分组，不把待办、已完成、已归档混在一屏。
+- Activities：按状态分列或按活动类型分列，默认不展示已归档，归档可单独勾选。
 - Calendar：可切换任务带入与外部导入，外部导入以 `.ics` 存储，导出时只包含当前勾选来源。
 - Contribution：统计 `includeInContribution` 为 `true` 的阶段中的总负责人次数（绿色）以及分工负责人次数（蓝色）。
 

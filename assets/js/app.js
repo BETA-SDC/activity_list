@@ -9,8 +9,9 @@
     tasks: [],
     calendarSources: [],
     calendarSourceIds: [],
-    activityGroupId: "todo",
-    filterMode: "status"
+    filterMode: "status",
+    statusFilter: "待分工",
+    showArchived: false
   };
 
   const loadData = async () => {
@@ -23,12 +24,8 @@
       ...group,
       activities: AL.sortActivities(group.activities)
     }));
-    state.activityGroupId =
-      state.activityGroups.find((group) => group.default)?.id ||
-      state.activityGroups.find((group) => group.id === "todo")?.id ||
-      state.activityGroups[0]?.id ||
-      "";
     state.tasks = tasks;
+    state.statusFilter = AL.activeStatusFilter(state);
     state.calendarSources = await AL.loadCalendarSources(state);
     state.calendarSourceIds = state.calendarSources
       .filter((source) => source.default)
@@ -71,9 +68,15 @@
       AL.render(state, app);
     }
 
-    const groupButton = event.target.closest("[data-group]");
-    if (groupButton) {
-      state.activityGroupId = groupButton.dataset.group;
+    const statusButton = event.target.closest("[data-status]");
+    if (statusButton) {
+      state.statusFilter = statusButton.dataset.status || "待分工";
+      AL.render(state, app);
+    }
+
+    const archiveToggle = event.target.closest("[data-show-archived]");
+    if (archiveToggle) {
+      state.showArchived = archiveToggle.checked;
       AL.render(state, app);
     }
 
