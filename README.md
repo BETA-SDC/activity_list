@@ -6,7 +6,7 @@
 - Calendar：可勾选任务带入与外部导入，并导出 Apple Calendar/ICS。
 - Contribution：统计待分工和已分工的总负责人次数和分工负责人次数，不含归档。
 
-这个网站会自动读取项目里的三个数据来源：
+这个网站会自动读取项目里的三个数据来源文件：
 
 - `data/activities/index.json`
 - `data/activities/todo.json`
